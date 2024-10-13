@@ -1,0 +1,161 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stateless-load-balancer
+  labels:
+    app: stateless-load-balancer
+    app.kubernetes.io/component: stateless-load-balancer
+    app.kubernetes.io/part-of: meridio-experiment
+    app.kubernetes.io/version: {{.Values.version}}
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: stateless-load-balancer
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: stateless-load-balancer
+        app.kubernetes.io/component: stateless-load-balancer
+        app.kubernetes.io/part-of: meridio-experiment
+        app.kubernetes.io/version: {{.Values.version}}
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - "stateless-load-balancer"
+              topologyKey: kubernetes.io/hostname
+      serviceAccountName: stateless-load-balancer
+      initContainers:
+      - name: sysctl-init
+        image: busybox:latest
+        imagePullPolicy: Always
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1
+          ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0
+          ; sysctl -w net.ipv4.ip_local_port_range='49152 65535' ; sysctl -w net.ipv6.conf.all.forwarding=1
+          ; sysctl -w net.ipv6.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            cpu: 20m
+            memory: 20Mi
+            ephemeral-storage: 128Mi
+          requests:
+            cpu: 10m
+            memory: 10Mi
+            ephemeral-storage: 64Mi
+      containers:
+      - name: stateless-load-balancer
+        image: {{ .Values.registry }}/stateless-load-balancer:{{.Values.version}}
+        imagePullPolicy: Always
+        command:
+        - ./stateless-load-balancer
+        args:
+        - run
+        securityContext:
+          privileged: true
+        ports:
+        - name: probes
+          containerPort: 8081
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: probes
+          failureThreshold: 100
+          periodSeconds: 3
+          timeoutSeconds: 2
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: probes
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: probes
+          periodSeconds: 10
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: 300m
+            memory: 30Mi
+            ephemeral-storage: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+            ephemeral-storage: 512Mi
+      - name: router
+        image: {{ .Values.registry }}/router:{{.Values.version}}
+        imagePullPolicy: Always
+        command:
+        - ./router
+        args:
+        - run
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /var/run/bird
+          name: run
+        - mountPath: /etc/bird
+          name: etc
+        - mountPath: /var/log
+          name: log
+        ports:
+        - name: probes
+          containerPort: 8082
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: probes
+          failureThreshold: 100
+          periodSeconds: 3
+          timeoutSeconds: 2
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: probes
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: probes
+          periodSeconds: 10
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: 300m
+            memory: 30Mi
+            ephemeral-storage: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+            ephemeral-storage: 512Mi
+      volumes:
+      - emptyDir:
+          medium: Memory
+        name: tmp
+      - emptyDir:
+          medium: Memory
+        name: run
+      - emptyDir:
+          medium: Memory
+        name: etc
+      - emptyDir:
+          medium: Memory
+        name: log

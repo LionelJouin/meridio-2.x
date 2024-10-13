@@ -1,0 +1,13 @@
+---
+
+registry: localhost:5000/meridio-experiment
+tag: latest
+pullPolicy: IfNotPresent
+
+applicationName: a
+replicas: 4
+
+image: target-application
+version: latest
+
+networks: '[{"name": "macvlan-nad","interface": "net1"}]'

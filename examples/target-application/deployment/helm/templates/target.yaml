@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-target-application-{{ .Values.applicationName }}
+  labels:
+    app: example-target-application-{{ .Values.applicationName }}
+spec:
+  selector:
+    matchLabels:
+      app: example-target-application-{{ .Values.applicationName }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: example-target-application-{{ .Values.applicationName }}
+        application-name: {{ .Values.applicationName }}
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '{{ .Values.networks }}'
+    spec:
+      containers:
+        - name: example-target
+          image: {{ .Values.registry }}/{{ .Values.image }}:{{ .Values.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - screen -d -m bash -c "./mconnect -server -address [::]:4000" ; 
+              screen -d -m bash -c "./mconnect -server -address [::]:4001" ; 
+              screen -d -m bash -c "./mconnect -server -address [::]:4002" ; 
+              screen -d -m bash -c "./mconnect -server -udp -address [::]:4100" ; 
+              screen -d -m bash -c "./mconnect -server -udp -address [::]:4101" ; 
+              screen -d -m bash -c "./ctraffic -server -address [::]:5000" ; 
+              screen -d -m bash -c "./ctraffic -server -address [::]:5001" ; 
+              screen -d -m bash -c "./ctraffic -server -address [::]:5002" ; 
+              screen -d -m bash -c "./ctraffic -server -udp -address [::]:5100" ; 
+              screen -d -m bash -c "./ctraffic -server -udp -address [::]:5101" ; 
+              tail -f /dev/null
+          securityContext:
+            privileged: true
