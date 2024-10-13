@@ -21,6 +21,7 @@ import (
 
 	"github.com/lioneljouin/meridio-experiment/apis/v1alpha1"
 	"github.com/lioneljouin/meridio-experiment/pkg/cli"
+	"github.com/lioneljouin/meridio-experiment/pkg/controller/statelessloadbalancer"
 	"github.com/lioneljouin/meridio-experiment/pkg/log"
 	"github.com/lioneljouin/meridio-experiment/pkg/nfqlb"
 	"github.com/spf13/cobra"
@@ -58,14 +59,14 @@ func newCmdRun() *cobra.Command {
 		&runOpts.name,
 		"name",
 		"",
-		"name of the gateway in which the router is running.",
+		"name of the gateway in which the stateless-load-balancer is running.",
 	)
 
 	cmd.Flags().StringVar(
 		&runOpts.namespace,
 		"namespace",
 		"default",
-		"namespace of the gateway in which the router is running.",
+		"namespace of the gateway in which the stateless-load-balancer is running.",
 	)
 
 	cmd.Flags().StringVar(
@@ -117,16 +118,16 @@ func (ro *runOptions) run(ctx context.Context) {
 		}
 	}()
 
-	// if err = (&statelessloadbalancer.Controller{
-	// 	Client:           mgr.GetClient(),
-	// 	Scheme:           mgr.GetScheme(),
-	// 	Name:             ro.name,
-	// 	Namespace:        ro.namespace,
-	// 	GatewayClassName: ro.gatewayClassName,
-	// 	ServiceManager:   statelessloadbalancer.NewManager(statelessloadbalancer.NewNFQLB(lb)),
-	// }).SetupWithManager(mgr); err != nil {
-	// 	log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
-	// }
+	if err = (&statelessloadbalancer.Controller{
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		Name:             ro.name,
+		Namespace:        ro.namespace,
+		GatewayClassName: ro.gatewayClassName,
+		ServiceManager:   statelessloadbalancer.NewManager(statelessloadbalancer.NewNFQLB(lb)),
+	}).SetupWithManager(mgr); err != nil {
+		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Fatal(setupLog, "unable to set up health check", "err", err)

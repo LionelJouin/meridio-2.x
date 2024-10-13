@@ -21,6 +21,7 @@ import (
 
 	"github.com/lioneljouin/meridio-experiment/apis/v1alpha1"
 	"github.com/lioneljouin/meridio-experiment/pkg/cli"
+	"github.com/lioneljouin/meridio-experiment/pkg/controller/gateway"
 	"github.com/lioneljouin/meridio-experiment/pkg/log"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,8 +45,8 @@ func newCmdRun() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run",
-		Short: "Run the stateless-load-balancer-controller-manager",
-		Long:  `Run the stateless-load-balancer-controller-manager`,
+		Short: "Run the controller-manager",
+		Long:  `Run the controller-manager`,
 		Run: func(cmd *cobra.Command, _ []string) {
 			runOpts.run(cmd.Context())
 		},
@@ -71,7 +72,7 @@ func (ro *runOptions) run(ctx context.Context) {
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gatewayapiv1.Install(scheme))
 
-	logger := log.New("stateless-load-balancer-controller-manager", ro.LogLevel)
+	logger := log.New("controller-manager", ro.LogLevel)
 
 	crlog.SetLogger(logger)
 
@@ -88,14 +89,13 @@ func (ro *runOptions) run(ctx context.Context) {
 		log.Fatal(setupLog, "failed to create manager for controllers", "err", err)
 	}
 
-	// if err = (&controllermanager.Controller{
-	// 	Client:           mgr.GetClient(),
-	// 	Scheme:           mgr.GetScheme(),
-	// 	GatewayClassName: ro.gatewayClassName,
-	// 	GetIPsFunc:       networkattachment.GetIPs,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
-	// }
+	if err = (&gateway.Controller{
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		GatewayClassName: ro.gatewayClassName,
+	}).SetupWithManager(mgr); err != nil {
+		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
+	}
 
 	// if err = (&podinjector.Controller{
 	// 	Client:           mgr.GetClient(),

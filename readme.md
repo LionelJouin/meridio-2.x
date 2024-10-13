@@ -8,7 +8,7 @@ make generate
 make REGISTRY=ghcr.io/lioneljouin/meridio-experiment
 ```
 
-### pre-requisites:
+### Pre-Requisites
 
 Install Gateway API:
 ```
@@ -25,6 +25,19 @@ Install Multus:
 kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/refs/heads/master/deployments/multus-daemonset.yml
 ```
 
+Install Meridio Experiment:
 ```
-helm install poc ./deployments/PoC --set registry=ghcr.io/lioneljouin/meridio-experiment
+helm install poc ./deployments/PoC --set registry=ghcr.io/lioneljouin/meridio-experiment --set imagePullPolicy=IfNotPresent --set sllbReplicas=2
+```
+
+## Demo
+
+Install the example Gateway/GatewayRouter/Service:
+```
+kubectl apply -f examples/sllb-a.yaml
+```
+
+Install example application behind the service:
+```
+helm install example-target-application-a ./examples/target-application/deployment/helm --set applicationName=a --set registry=ghcr.io/lioneljouin/meridio-experiment
 ```

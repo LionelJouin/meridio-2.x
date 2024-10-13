@@ -14,10 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package endpointslice
 
-import "github.com/lioneljouin/meridio-experiment/cmd/stateless-load-balancer-controller-manager/cmd"
+import (
+	"fmt"
+	"strings"
 
-func main() {
-	cmd.Execute()
+	v1 "k8s.io/api/core/v1"
+	v1discovery "k8s.io/api/discovery/v1"
+)
+
+// GetEndpointSliceName concatenates the service name and the address type (ip family).
+func GetEndpointSliceName(service *v1.Service, addressType v1discovery.AddressType) string {
+	return fmt.Sprintf("%s-%s", service.GetName(), strings.ToLower(string(addressType)))
 }

@@ -13,7 +13,7 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-IMAGES ?= router example-target-application vpn-gateway stateless-load-balancer stateless-load-balancer-controller-manager
+IMAGES ?= router example-target-application vpn-gateway stateless-load-balancer controller-manager
 VERSION ?= latest
 
 # E2E tests
@@ -88,9 +88,9 @@ vpn-gateway: ## Build the vpn-gateway.
 stateless-load-balancer: ## Build the stateless-load-balancer.
 	IMAGE=stateless-load-balancer $(MAKE) $(BUILD_STEPS)
 
-.PHONY: stateless-load-balancer-controller-manager
-stateless-load-balancer-controller-manager: ## Build the stateless-load-balancer-controller-manager.
-	IMAGE=stateless-load-balancer-controller-manager $(MAKE) $(BUILD_STEPS)
+.PHONY: controller-manager
+controller-manager: ## Build the controller-manager.
+	IMAGE=controller-manager $(MAKE) $(BUILD_STEPS)
 
 #############################################################################
 ##@ Testing & Code check

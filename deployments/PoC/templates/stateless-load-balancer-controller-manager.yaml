@@ -2,12 +2,12 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: stateless-load-balancer-controller-manager
+  name: meridio-experiment-controller-manager
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: stateless-load-balancer-controller-manager
+  name: meridio-experiment-controller-manager
 rules:
 - apiGroups:
   - apps
@@ -79,14 +79,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: stateless-load-balancer-controller-manager
+  name: meridio-experiment-controller-manager
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: stateless-load-balancer-controller-manager
+  name: meridio-experiment-controller-manager
 subjects:
 - kind: ServiceAccount
-  name: stateless-load-balancer-controller-manager
+  name: meridio-experiment-controller-manager
   namespace: default
 ---
 kind: ConfigMap
@@ -100,30 +100,30 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stateless-load-balancer-controller-manager
+  name: meridio-experiment-controller-manager
   labels:
-    app: stateless-load-balancer-controller-manager
+    app: meridio-experiment-controller-manager
     app.kubernetes.io/part-of: meridio-experiment
     app.kubernetes.io/version: {{.Values.version}}
 spec:
   selector:
     matchLabels:
-      app: stateless-load-balancer-controller-manager
+      app: meridio-experiment-controller-manager
   replicas: 1
   template:
     metadata:
       labels:
-        app: stateless-load-balancer-controller-manager
+        app: meridio-experiment-controller-manager
         app.kubernetes.io/part-of: meridio-experiment
         app.kubernetes.io/version: {{.Values.version}}
     spec:
-      serviceAccountName: stateless-load-balancer-controller-manager
+      serviceAccountName: meridio-experiment-controller-manager
       containers:
-      - name: stateless-load-balancer-controller-manager
-        image: {{ .Values.registry }}/stateless-load-balancer-controller-manager:{{.Values.version}}
-        imagePullPolicy: Always
+      - name: controller-manager
+        image: {{ .Values.registry }}/controller-manager:{{.Values.version}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
-        - "./stateless-load-balancer-controller-manager"
+        - "./controller-manager"
         args:
         - "run"
         - "--gateway-class-name=meridio-experiment/stateless-load-balancer"

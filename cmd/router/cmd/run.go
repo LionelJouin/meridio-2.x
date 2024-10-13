@@ -22,6 +22,7 @@ import (
 	"github.com/lioneljouin/meridio-experiment/apis/v1alpha1"
 	"github.com/lioneljouin/meridio-experiment/pkg/bird"
 	"github.com/lioneljouin/meridio-experiment/pkg/cli"
+	"github.com/lioneljouin/meridio-experiment/pkg/controller/router"
 	"github.com/lioneljouin/meridio-experiment/pkg/log"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,8 +47,8 @@ func newCmdRun() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run",
-		Short: "Run the kpng gateway",
-		Long:  `Run the kpng gateway`,
+		Short: "Run the router",
+		Long:  `Run the router`,
 		Run: func(cmd *cobra.Command, _ []string) {
 			runOpts.run(cmd.Context())
 		},
@@ -106,15 +107,15 @@ func (ro *runOptions) run(ctx context.Context) {
 		}
 	}()
 
-	// if err = (&router.Controller{
-	// 	Client:               mgr.GetClient(),
-	// 	Scheme:               mgr.GetScheme(),
-	// 	RoutingSuiteInstance: birdInstance,
-	// 	Name:                 ro.name,
-	// 	Namespace:            ro.namespace,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
-	// }
+	if err = (&router.Controller{
+		Client:               mgr.GetClient(),
+		Scheme:               mgr.GetScheme(),
+		RoutingSuiteInstance: birdInstance,
+		Name:                 ro.name,
+		Namespace:            ro.namespace,
+	}).SetupWithManager(mgr); err != nil {
+		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Fatal(setupLog, "unable to set up health check", "err", err)

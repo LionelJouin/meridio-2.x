@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package cmd provides the CLI for the stateless-load-balancer-controller-manager program.
+// Package cmd provides the CLI for the controller-manager program.
 package cmd
 
 import (
@@ -36,9 +36,9 @@ func Execute() {
 
 func getRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "stateless-load-balancer-controller-manager",
+		Use:   "controller-manager",
 		Short: "CLI",
-		Long:  `CLI for interacting with the stateless-load-balancer-controller-manager`,
+		Long:  `CLI for interacting with the controller-manager`,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
 		},

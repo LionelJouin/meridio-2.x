@@ -1,6 +1,6 @@
 ARG BUILD_VERSION=0.0.0-unknown
 
-FROM golang:1.22 as build
+FROM golang:1.23 AS build
 
 ENV GO111MODULE=on
 
@@ -15,7 +15,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-extldflags -static -X github.com/lioneljouin/meridio-experiment/pkg/cli.Version=${BUILD_VERSION}" -o stateless-load-balancer ./cmd/stateless-load-balancer
 
-FROM ubuntu:22.04 as nfqlb-build
+FROM ubuntu:22.04 AS nfqlb-build
 
 RUN apt-get update && apt install -y git build-essential libmnl-dev libnetfilter-queue-dev libpcap-dev curl \
     && git clone --depth 1 --branch 1.2.0 https://github.com/Nordix/nfqueue-loadbalancer.git

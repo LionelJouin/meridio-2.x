@@ -1,6 +1,6 @@
 ARG BUILD_VERSION=0.0.0-unknown
 
-FROM golang:1.22 as build
+FROM golang:1.23 AS build
 
 ENV GO111MODULE=on
 

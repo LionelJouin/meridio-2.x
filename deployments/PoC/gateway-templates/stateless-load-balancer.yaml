@@ -13,7 +13,7 @@ spec:
   selector:
     matchLabels:
       app: stateless-load-balancer
-  replicas: 2
+  replicas: {{.Values.sllbReplicas}}
   template:
     metadata:
       labels:
@@ -36,7 +36,7 @@ spec:
       initContainers:
       - name: sysctl-init
         image: busybox:latest
-        imagePullPolicy: Always
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
         - /bin/sh
         args:
@@ -59,7 +59,7 @@ spec:
       containers:
       - name: stateless-load-balancer
         image: {{ .Values.registry }}/stateless-load-balancer:{{.Values.version}}
-        imagePullPolicy: Always
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
         - ./stateless-load-balancer
         args:
@@ -99,7 +99,7 @@ spec:
             ephemeral-storage: 512Mi
       - name: router
         image: {{ .Values.registry }}/router:{{.Values.version}}
-        imagePullPolicy: Always
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
         - ./router
         args:
