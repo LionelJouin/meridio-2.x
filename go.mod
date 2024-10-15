@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/nftables v0.2.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.4
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/vishvananda/netlink v1.3.0

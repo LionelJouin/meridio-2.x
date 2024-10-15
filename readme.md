@@ -25,9 +25,21 @@ Install Multus:
 kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/refs/heads/master/deployments/multus-daemonset.yml
 ```
 
+Install Whereabouts:
+```
+kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/refs/tags/v0.8.0/doc/crds/daemonset-install.yaml
+kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/refs/tags/v0.8.0/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/refs/tags/v0.8.0/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+```
+
 Install Meridio Experiment:
 ```
 helm install poc ./deployments/PoC --set registry=ghcr.io/lioneljouin/meridio-experiment --set imagePullPolicy=IfNotPresent --set sllbReplicas=2
+```
+
+Install Gateways/Routers/Traffic-Generators (`docker compose down` to uninstall. Change manually the image in `docker-compose.yaml` if you built your own):
+```
+docker compose up -d
 ```
 
 ## Demo
@@ -35,9 +47,10 @@ helm install poc ./deployments/PoC --set registry=ghcr.io/lioneljouin/meridio-ex
 Install the example Gateway/GatewayRouter/Service:
 ```
 kubectl apply -f examples/sllb-a.yaml
+kubectl apply -f examples/sllb-b.yaml
 ```
 
 Install example application behind the service:
 ```
-helm install example-target-application-a ./examples/target-application/deployment/helm --set applicationName=a --set registry=ghcr.io/lioneljouin/meridio-experiment
+helm install example-target-application-multi ./examples/target-application/deployment/helm --set applicationName=multi --set networks='[{"name":"macvlan-nad-1","interface":"net1"},{"name":"macvlan-nad-2","interface":"net2"}]' --set registry=ghcr.io/lioneljouin/meridio-experiment
 ```

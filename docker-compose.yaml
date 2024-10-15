@@ -1,0 +1,27 @@
+services:
+  vpn-gateway-a:
+    image: localhost:5000/l-3-4-gateway-api-poc/vpn-gateway:latest
+    container_name: vpn-a
+    privileged: true
+    command: /init.sh 100
+    networks:
+      - kind
+  vpn-gateway-b:
+    image: localhost:5000/l-3-4-gateway-api-poc/vpn-gateway:latest
+    container_name: vpn-b
+    privileged: true
+    command: /init.sh 200
+    networks:
+      - kind
+  vpn-gateway-c:
+    image: localhost:5000/l-3-4-gateway-api-poc/vpn-gateway:latest
+    container_name: vpn-c
+    privileged: true
+    command: /init.sh 300
+    networks:
+      - kind
+
+networks:
+  kind:
+    name: kind
+    external: true

@@ -10,4 +10,4 @@ replicas: 4
 image: target-application
 version: latest
 
-networks: '[{"name": "macvlan-nad","interface": "net1"}]'
+networks: '[{"name": "macvlan-nad-1","interface": "net1"}]'

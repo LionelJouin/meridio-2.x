@@ -2,11 +2,11 @@
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
-  name: macvlan-nad-1
+  name: macvlan-nad-2
 spec:
   config: '{
       "cniVersion": "1.0.0",
-      "name": "macvlan-nad-1",
+      "name": "macvlan-nad-2",
       "plugins": [
           {
               "type": "macvlan",
@@ -17,7 +17,7 @@ spec:
                   "type": "whereabouts",
                   "ipRanges": [
                       {
-                          "range": "169.111.100.0/24"
+                          "range": "169.222.100.0/24"
                       }
                   ]
               }
@@ -28,16 +28,16 @@ spec:
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
-  name: vlan-100
+  name: vlan-200
 spec:
   config: '{
       "cniVersion": "1.0.0",
-      "name": "vlan-100",
+      "name": "vlan-200",
       "plugins": [
           {
               "type": "vlan",
               "master": "eth0",
-              "vlanId": 100,
+              "vlanId": 200,
               "linkInContainer": false,
               "ipam": {
                   "log_file": "/tmp/whereabouts.log",
@@ -58,7 +58,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: Gateway
 metadata:
-  name: sllb-a
+  name: sllb-b
 spec:
   gatewayClassName: meridio-experiment/stateless-load-balancer
   listeners:
@@ -67,18 +67,18 @@ spec:
     protocol: TCP
   infrastructure:
     annotations: 
-      k8s.v1.cni.cncf.io/networks: '[{"name":"vlan-100","interface":"vlan-100"},{"name":"macvlan-nad-1","interface":"net1"}]' # Networks attached to the gateway workloads
-      meridio-experiment/networks: '[{"name":"macvlan-nad-1","interface":"net1"}]' # Networks towards the service selected pods
+      k8s.v1.cni.cncf.io/networks: '[{"name":"vlan-200","interface":"vlan-200"},{"name":"macvlan-nad-2","interface":"net2"}]' # Networks attached to the gateway workloads
+      meridio-experiment/networks: '[{"name":"macvlan-nad-2","interface":"net2"}]' # Networks towards the service selected pods
 ---
 apiVersion: meridio.experiment.gateway.api.poc/v1alpha1
 kind: GatewayRouter
 metadata:
-  name: gateway-a-v4
+  name: gateway-b-v4
   labels:
-    service.kubernetes.io/service-proxy-name: sllb-a
+    service.kubernetes.io/service-proxy-name: sllb-b
 spec:
   address: 169.254.100.150
-  interface: vlan-100
+  interface: vlan-200
   bgp:
     localASN: 8103
     remoteASN: 4248829953
@@ -94,16 +94,16 @@ spec:
 apiVersion: meridio.experiment.gateway.api.poc/v1alpha1
 kind: L34Route
 metadata:
-  name: vip-20-0-0-1-multi-ports-a
+  name: vip-20-0-0-1-multi-ports-b
 spec:
   parentRefs:
-  - name: sllb-a
+  - name: sllb-b
   backendRefs:
-  - name: service-a
+  - name: service-b
     port: 4000 # This is ignored
   priority: 1
   destinationCIDRs:
-  - 20.0.0.1/32
+  - 40.0.0.1/32
   sourceCIDRs:
   - 0.0.0.0/0
   sourcePorts:
@@ -121,9 +121,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: service-a
+  name: service-b
   labels:
-    service.kubernetes.io/service-proxy-name: sllb-a
+    service.kubernetes.io/service-proxy-name: sllb-b
 spec:
   clusterIP: None
   selector:

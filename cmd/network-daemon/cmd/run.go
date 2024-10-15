@@ -20,14 +20,9 @@ import (
 	"context"
 
 	"github.com/lioneljouin/meridio-experiment/apis/v1alpha1"
+	"github.com/lioneljouin/meridio-experiment/pkg/bird"
 	"github.com/lioneljouin/meridio-experiment/pkg/cli"
-	"github.com/lioneljouin/meridio-experiment/pkg/controller/endpointslice"
-	"github.com/lioneljouin/meridio-experiment/pkg/controller/endpointslice/reconciler"
-	"github.com/lioneljouin/meridio-experiment/pkg/controller/gateway"
-	"github.com/lioneljouin/meridio-experiment/pkg/controller/podnetworkannotator"
-	"github.com/lioneljouin/meridio-experiment/pkg/controller/podnetworkannotator/network"
 	"github.com/lioneljouin/meridio-experiment/pkg/log"
-	"github.com/lioneljouin/meridio-experiment/pkg/networkattachment"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -42,7 +37,7 @@ import (
 
 type runOptions struct {
 	cli.CommonOptions
-	gatewayClassName string
+	namespace string
 }
 
 func newCmdRun() *cobra.Command {
@@ -50,18 +45,18 @@ func newCmdRun() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run",
-		Short: "Run the controller-manager",
-		Long:  `Run the controller-manager`,
+		Short: "Run the network-daemon",
+		Long:  `Run the network-daemon`,
 		Run: func(cmd *cobra.Command, _ []string) {
 			runOpts.run(cmd.Context())
 		},
 	}
 
 	cmd.Flags().StringVar(
-		&runOpts.gatewayClassName,
-		"gateway-class-name",
-		"",
-		"Name of the Gateway Class handled by this controller manager.",
+		&runOpts.namespace,
+		"namespace",
+		"default",
+		"namespace of the gateway in which the network-daemon is running.",
 	)
 
 	runOpts.SetCommonFlags(cmd)
@@ -77,7 +72,7 @@ func (ro *runOptions) run(ctx context.Context) {
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gatewayapiv1.Install(scheme))
 
-	logger := log.New("controller-manager", ro.LogLevel)
+	logger := log.New("network-daemon", ro.LogLevel)
 
 	crlog.SetLogger(logger)
 
@@ -88,48 +83,20 @@ func (ro *runOptions) run(ctx context.Context) {
 		Metrics: server.Options{
 			BindAddress: "0",
 		},
-		HealthProbeBindAddress: ":8081",
+		HealthProbeBindAddress: ":8082",
 	})
 	if err != nil {
 		log.Fatal(setupLog, "failed to create manager for controllers", "err", err)
 	}
 
-	if err = (&gateway.Controller{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		GatewayClassName: ro.gatewayClassName,
-	}).SetupWithManager(mgr); err != nil {
-		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
-	}
+	birdInstance := bird.New()
 
-	if err = (&endpointslice.Controller{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		GatewayClassName: ro.gatewayClassName,
-		ServiceReconciler: &reconciler.Service{
-			Client: mgr.GetClient(),
-			EndpointSliceReconciler: &reconciler.EndpointSlice{
-				Client:     mgr.GetClient(),
-				Scheme:     mgr.GetScheme(),
-				GetIPsFunc: networkattachment.GetIPs,
-			},
-		},
-	}).SetupWithManager(mgr); err != nil {
-		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "EndpointSlice")
-	}
-
-	if err = (&podnetworkannotator.Controller{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		GatewayClassName: ro.gatewayClassName,
-		GetIPsFunc:       networkattachment.GetIPs,
-		NetworkAnnotator: &network.Annotater{
-			MinTableID: 50000,
-			MaxTableID: 55000,
-		},
-	}).SetupWithManager(mgr); err != nil {
-		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "PodNetworkAnnotator")
-	}
+	go func() {
+		err := birdInstance.Run(ctx)
+		if err != nil {
+			setupLog.Error(err, "failed to start bird")
+		}
+	}()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Fatal(setupLog, "unable to set up health check", "err", err)
