@@ -92,6 +92,7 @@ func (c *Controller) reconcileGateway(ctx context.Context, gateway *gatewayapiv1
 	vipV4, vipV6 := getVIPs(gateway)
 
 	networks := networkattachment.GetNetworksFromGateway(gateway)
+
 	gatewaysV4, gatewaysV6, err := c.getGatewayIPs(ctx, gateway, networks)
 	if err != nil {
 		return nil, err

@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: meridio-experiment-network-daemon
+  labels:
+    app: meridio-experiment-network-daemon
+spec:
+  selector:
+    matchLabels:
+      app: meridio-experiment-network-daemon
+  template:
+    metadata:
+      labels:
+        app: meridio-experiment-network-daemon
+    spec:
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      - operator: Exists
+        effect: NoExecute
+      serviceAccountName: meridio-experiment-controller-manager
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - name: network-daemon
+        image: {{ .Values.registry }}/network-daemon:{{.Values.version}}
+        imagePullPolicy: Always
+        command:
+        - ./network-daemon
+        args:
+        - "run"
+        - "--node-name=$(NODE_NAME)"
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: cri-socket
+          mountPath: /run/containerd/containerd.sock
+        - name: host-run-netns
+          mountPath: /run/netns
+          mountPropagation: HostToContainer
+      volumes:
+      - name: cri-socket
+        hostPath:
+          path: /run/containerd/containerd.sock
+          type: Socket
+      - name: host-run-netns
+        hostPath:
+          path: /run/netns/

@@ -16,6 +16,13 @@ limitations under the License.
 
 package networkannotation
 
+import (
+	"encoding/json"
+	"fmt"
+
+	v1 "k8s.io/api/core/v1"
+)
+
 const NetworkAnnotationKey = "meridio-experiment/network-configuration"
 
 // key is the gateway name
@@ -27,4 +34,21 @@ type NetworkRoute struct {
 	GatewaysV4 []string `json:"gatewaysV4"`
 	GatewaysV6 []string `json:"gatewaysV6"`
 	TableID    int      `json:"tableID"`
+}
+
+// GetNetworkConfiguration ...
+func GetNetworkConfiguration(
+	pod *v1.Pod,
+) (NetworkConfiguration, error) {
+	var currentNetworkConfiguration NetworkConfiguration
+
+	networks, exists := pod.GetAnnotations()[NetworkAnnotationKey]
+	if exists {
+		err := json.Unmarshal([]byte(networks), &currentNetworkConfiguration)
+		if err != nil {
+			return nil, fmt.Errorf("failed to json.Unmarshal Network Annotation: %w", err)
+		}
+	}
+
+	return currentNetworkConfiguration, nil
 }

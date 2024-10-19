@@ -18,17 +18,22 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/lioneljouin/meridio-experiment/apis/v1alpha1"
-	"github.com/lioneljouin/meridio-experiment/pkg/bird"
 	"github.com/lioneljouin/meridio-experiment/pkg/cli"
+	"github.com/lioneljouin/meridio-experiment/pkg/controller/podnetworkinjector"
+	"github.com/lioneljouin/meridio-experiment/pkg/cri"
 	"github.com/lioneljouin/meridio-experiment/pkg/log"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -37,7 +42,9 @@ import (
 
 type runOptions struct {
 	cli.CommonOptions
-	namespace string
+	namespace     string
+	criSocketPath string
+	nodeName      string
 }
 
 func newCmdRun() *cobra.Command {
@@ -57,6 +64,20 @@ func newCmdRun() *cobra.Command {
 		"namespace",
 		"default",
 		"namespace of the gateway in which the network-daemon is running.",
+	)
+
+	cmd.Flags().StringVar(
+		&runOpts.criSocketPath,
+		"cri-socket-path",
+		"/run/containerd/containerd.sock",
+		"Path to the CRI socket.",
+	)
+
+	cmd.Flags().StringVar(
+		&runOpts.nodeName,
+		"node-name",
+		"",
+		"Name of the node where this pod is running.",
 	)
 
 	runOpts.SetCommonFlags(cmd)
@@ -79,7 +100,18 @@ func (ro *runOptions) run(ctx context.Context) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:         scheme,
 		LeaderElection: false,
-		Cache:          cache.Options{},
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&v1.Pod{}: {
+					// Field: fields.OneTermEqualSelector("spec.nodeName", ro.nodeName),
+					// Field: fields.OneTermEqualSelector("spec.hostNetwork", ),
+					Field: fields.SelectorFromSet(fields.Set{
+						"spec.nodeName":    ro.nodeName,
+						"spec.hostNetwork": "false",
+					}),
+				},
+			},
+		},
 		Metrics: server.Options{
 			BindAddress: "0",
 		},
@@ -89,14 +121,21 @@ func (ro *runOptions) run(ctx context.Context) {
 		log.Fatal(setupLog, "failed to create manager for controllers", "err", err)
 	}
 
-	birdInstance := bird.New()
+	const shortTimeout = 5 * time.Second
+	containerRuntime, err := cri.NewRuntime(ro.criSocketPath, shortTimeout)
+	if err != nil {
+		log.Fatal(setupLog, "failed to connect to container runtime", "err", err)
+	}
 
-	go func() {
-		err := birdInstance.Run(ctx)
-		if err != nil {
-			setupLog.Error(err, "failed to start bird")
-		}
-	}()
+	if err = (&podnetworkinjector.Controller{
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		MinTableID:       50000,
+		MaxTableID:       55000,
+		ContainerRuntime: containerRuntime,
+	}).SetupWithManager(mgr); err != nil {
+		log.Fatal(setupLog, "failed to create controller", "err", err, "controller", "Gateway")
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Fatal(setupLog, "unable to set up health check", "err", err)
