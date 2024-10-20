@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"net"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -188,6 +190,8 @@ type Network struct {
 	// NetworkAttachementAnnotation represents a network attached via an annotation.
 	// +optional
 	NetworkAttachementAnnotation *NetworkAttachementAnnotation `json:"networkAttachementAnnotation,omitempty"`
+
+	NetwokSubnets []*net.IPNet
 }
 
 // NetworkAttachementAnnotation represents a network attached via an annotation.

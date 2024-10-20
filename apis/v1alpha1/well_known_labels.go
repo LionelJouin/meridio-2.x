@@ -28,4 +28,6 @@ const (
 
 	// PodSelectedNetworks represents the networks that must be in the pods selected by the services.
 	PodSelectedNetworks = "meridio-experiment/networks"
+
+	PodSelectedNetworkSubnets = "meridio-experiment/network-subnets"
 )

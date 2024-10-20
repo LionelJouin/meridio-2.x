@@ -79,7 +79,6 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		// (1 time for old and 1 time for new object)
 		Watches(&v1.Service{}, handler.EnqueueRequestsFromMapFunc(c.serviceEnqueue)).
 		Watches(&gatewayapiv1.Gateway{}, handler.EnqueueRequestsFromMapFunc(c.gatewayEnqueue)).
-		Watches(&v1.Pod{}, handler.EnqueueRequestsFromMapFunc(c.podEnqueue)).
 		Complete(c)
 	if err != nil {
 		return fmt.Errorf("failed to build the pod controller manager: %w", err)

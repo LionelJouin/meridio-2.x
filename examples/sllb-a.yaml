@@ -69,6 +69,7 @@ spec:
     annotations: 
       k8s.v1.cni.cncf.io/networks: '[{"name":"vlan-100","interface":"vlan-100"},{"name":"macvlan-nad-1","interface":"net1"}]' # Networks attached to the gateway workloads
       meridio-experiment/networks: '[{"name":"macvlan-nad-1","interface":"net1"}]' # Networks towards the service selected pods
+      meridio-experiment/network-subnets: '["169.111.100.0/24"]'
 ---
 apiVersion: meridio.experiment.gateway.api.poc/v1alpha1
 kind: GatewayRouter

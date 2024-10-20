@@ -54,3 +54,8 @@ Install example application behind the service:
 ```
 helm install example-target-application-multi ./examples/target-application/deployment/helm --set applicationName=multi --set networks='[{"name":"macvlan-nad-1","interface":"net1"},{"name":"macvlan-nad-2","interface":"net2"}]' --set registry=ghcr.io/lioneljouin/meridio-experiment
 ```
+
+```
+docker exec -it vpn-a mconnect -address 20.0.0.1:4000 -nconn 400 -timeout 2s
+docker exec -it vpn-b mconnect -address 40.0.0.1:4000 -nconn 400 -timeout 2s
+```

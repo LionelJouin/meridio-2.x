@@ -77,6 +77,22 @@ func getEndpoints(
 				continue
 			}
 
+			inSubnet := false
+
+		networksLoop:
+			for _, network := range networks {
+				for _, subnet := range network.NetwokSubnets {
+					if subnet.Contains(ipAddr) {
+						inSubnet = true
+						break networksLoop
+					}
+				}
+			}
+
+			if !inSubnet {
+				continue
+			}
+
 			ipFamily := v1discovery.AddressTypeIPv6
 
 			if ipAddr.To4() != nil {

@@ -17,6 +17,9 @@ limitations under the License.
 package networkattachment
 
 import (
+	"encoding/json"
+	"net"
+
 	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/lioneljouin/meridio-experiment/apis/v1alpha1"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -28,6 +31,25 @@ func GetNetworksFromGateway(gateway *gatewayapiv1.Gateway) []*v1alpha1.Network {
 		return []*v1alpha1.Network{}
 	}
 
+	podSelectedNetworkSubnets := []*net.IPNet{}
+	podSelectedNetworkSubnetsStr, exists := gateway.Spec.Infrastructure.Annotations[v1alpha1.PodSelectedNetworkSubnets]
+	if exists {
+		podSelectedNetworkSubnetsSlice := []string{}
+		err := json.Unmarshal([]byte(podSelectedNetworkSubnetsStr), &podSelectedNetworkSubnetsSlice)
+		if err != nil {
+			return []*v1alpha1.Network{}
+		}
+
+		for _, podSelectedNetworkSubnet := range podSelectedNetworkSubnetsSlice {
+			_, ipNet, err := net.ParseCIDR(podSelectedNetworkSubnet)
+			if err != nil {
+				continue
+			}
+
+			podSelectedNetworkSubnets = append(podSelectedNetworkSubnets, ipNet)
+		}
+	}
+
 	return []*v1alpha1.Network{
 		{
 			Name: netdefv1.NetworkAttachmentAnnot,
@@ -36,6 +58,7 @@ func GetNetworksFromGateway(gateway *gatewayapiv1.Gateway) []*v1alpha1.Network {
 				StatusKey: netdefv1.NetworkStatusAnnot,
 				Value:     string(networkAttachmentAnnotation),
 			},
+			NetwokSubnets: podSelectedNetworkSubnets,
 		},
 	}
 }

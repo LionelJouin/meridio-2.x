@@ -65,11 +65,12 @@ func (c *Controller) reconcileStatelessLoadBalancerDeployment(
 		return fmt.Errorf("failed to get the stateless-load-balancer deployment: %w", err)
 	}
 
-	// Update
-	err = c.Update(ctx, statelessLoadBalancerDeploymentLatestState)
-	if err != nil {
-		return fmt.Errorf("failed to update the stateless-load-balancer deployment: %w", err)
-	}
+	// TODO: Update
+	// // Update
+	// err = c.Patch(ctx, statelessLoadBalancerDeployment, client.StrategicMergeFrom(statelessLoadBalancerDeploymentLatestState))
+	// if err != nil {
+	// 	return fmt.Errorf("failed to update the stateless-load-balancer deployment: %w", err)
+	// }
 
 	return nil
 }

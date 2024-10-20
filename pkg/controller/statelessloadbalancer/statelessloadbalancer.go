@@ -96,9 +96,9 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		For(&gatewayapiv1.Gateway{}).
 		// With EnqueueRequestsFromMapFunc, on an update the func is called twice
 		// (1 time for old and 1 time for new object)
-		Watches(&v1alpha1.GatewayRouter{}, handler.EnqueueRequestsFromMapFunc(serviceEnqueue)).
-		Watches(&v1alpha1.GatewayRouter{}, handler.EnqueueRequestsFromMapFunc(c.endpointSliceEnqueue)).
-		Watches(&v1alpha1.GatewayRouter{}, handler.EnqueueRequestsFromMapFunc(l34RouteEnqueue)).
+		Watches(&v1.Service{}, handler.EnqueueRequestsFromMapFunc(serviceEnqueue)).
+		Watches(&v1discovery.EndpointSlice{}, handler.EnqueueRequestsFromMapFunc(c.endpointSliceEnqueue)).
+		Watches(&v1alpha1.L34Route{}, handler.EnqueueRequestsFromMapFunc(l34RouteEnqueue)).
 		Complete(c)
 	if err != nil {
 		return fmt.Errorf("failed to build the stateless-load-balancer manager: %w", err)

@@ -23,8 +23,9 @@ type enqueuer struct {
 	GatewayClassName string
 }
 
-func New(client client.Client) *enqueuer {
+func New(client client.Client, gatewayClassName string) *enqueuer {
 	return &enqueuer{
-		Client: client,
+		Client:           client,
+		GatewayClassName: gatewayClassName,
 	}
 }

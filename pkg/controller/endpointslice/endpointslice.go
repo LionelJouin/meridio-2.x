@@ -71,7 +71,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 // SetupWithManager sets up the controller with the Manager.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	enqr := enqueuer.New(c.Client)
+	enqr := enqueuer.New(c.Client, c.GatewayClassName)
 
 	err := ctrl.NewControllerManagedBy(mgr).
 		Named("EndpointSlice").

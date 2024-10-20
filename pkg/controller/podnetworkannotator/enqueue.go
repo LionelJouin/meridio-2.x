@@ -97,49 +97,6 @@ func (c *Controller) gatewayEnqueue(
 	return reconcileRequests
 }
 
-func (c *Controller) podEnqueue(
-	ctx context.Context,
-	object client.Object,
-) []reconcile.Request {
-	gatewayName, exists := object.GetLabels()[apis.LabelServiceProxyName]
-	if !exists {
-		return []reconcile.Request{}
-	}
-
-	serviceList := &v1.ServiceList{}
-
-	err := c.List(ctx,
-		serviceList,
-		client.MatchingLabels{
-			apis.LabelServiceProxyName: gatewayName,
-		},
-		client.InNamespace(object.GetNamespace()),
-	)
-	if err != nil {
-		log.FromContextOrGlobal(ctx).Error(err, "failed listing the services during the pod enqueue")
-
-		return []reconcile.Request{}
-	}
-
-	pods, err := c.getPodsForServices(ctx, serviceList)
-	if err != nil {
-		return []reconcile.Request{}
-	}
-
-	reconcileRequests := []reconcile.Request{}
-
-	for _, pod := range pods {
-		reconcileRequests = append(reconcileRequests, reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      pod.GetName(),
-				Namespace: pod.GetNamespace(),
-			},
-		})
-	}
-
-	return reconcileRequests
-}
-
 func (c *Controller) getPodsForServices(ctx context.Context, services *v1.ServiceList) ([]*v1.Pod, error) {
 	pods := []*v1.Pod{}
 	podsMap := map[types.NamespacedName]struct{}{}
