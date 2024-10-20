@@ -26,7 +26,7 @@ UNIT_TEST_DOCKER_PARAMS ?= -it
 UNIT_TEST_K8S_VERSION ?= 1.28.0
 
 # Contrainer Registry
-REGISTRY ?= localhost:5000/meridio-experiment
+REGISTRY ?= ghcr.io/lioneljouin/meridio-experiment
 
 GO_MOD := github.com/lioneljouin/meridio-experiment
 
