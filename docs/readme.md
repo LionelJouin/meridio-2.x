@@ -9,57 +9,59 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
 ## Table of Contents
 
 <!-- Generated with https://bitdowntoc.derlin.ch/ -->
-* [Summary](#summary)
-* [Motivation](#motivation)
-    + [Why Meridio](#why-meridio)
-* [API](#api)
-    + [Gateway API and Kubernetes API](#gateway-api-and-kubernetes-api)
-        - [Gateway](#gateway)
-            * [GatewayClass](#gatewayclass)
-        - [L34Route](#l34route)
-        - [Service](#service)
-    + [GatewayRouter](#gatewayrouter)
-    + [API Nordix/Meridio Differences](#api-nordixmeridio-differences)
-* [Components](#components)
-    + [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr)
-        - [Stateless-Load-Balancer (SLLB)](#stateless-load-balancer-sllb)
-        - [Router](#router)
-    + [Controller-Manager](#controller-manager)
-    + [Alternatives for Application Network Configuration Injection](#application-network-configuration-injection)
-        - [Annotation Injection](#annotation-injection)
-            * [Dynamic Network Attachment](#dynamic-network-attachment)
-            * [Network Daemon](#network-daemon)
-        - [Sidecar](#sidecar)
-        - [Static Configuration](#static-configuration)
-    + [Components Nordix/Meridio Differences](#components-nordixmeridio-differences)
-* [Data Plane](#data-plane)
-    + [DC Gateway to Meridio Gateway](#dc-gateway-to-meridio-gateway)
-    + [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr-1)
-    + [Meridio Gateway to Endpoint (Application pod)](#meridio-gateway-to-endpoint-application-pod)
-    + [Endpoint (Application pod)](#endpoint-application-pod)
-    + [Dataplane Nordix/Meridio Differences](#dataplane-nordixmeridio-differences)
-* [Extra Features](#extra-features)
-    + [Port Address Translation (PAT)](#port-address-translation-pat)
-    + [Gateway Scaling](#gateway-scaling)
-* [Prerequisites](#prerequisites)
-* [Multi-Tenancy](#multi-tenancy)
-* [Upgrade and Migration](#upgrade-and-migration)
-    + [Data Plane](#data-plane-1)
-    + [Meridio 2.x](#meridio-2x-1)
-    + [From Nordix/Meridio](#from-nordixmeridio)
-* [Project Structure and Implementation](#project-structure-and-implementation)
-    + [Projects](#projects)
-    + [Framework amd Design Pattern](#framework-amd-design-pattern)
-* [Evolution](#evolution)
-    + [Dynamic Resource Allocation](#dynamic-resource-allocation)
-    + [Service Type](#service-type)
-    + [Service Chaining](#service-chaining)
-* [Alternatives](#alternatives)
-    + [LoxiLB](#loxilb)
-    + [OVN-Kubernetes](#ovn-kubernetes)
-    + [F5](#f5)
-    + [Google](#google)
-    + [Cilium](#cilium)
+- [Summary](#summary)
+- [Motivation](#motivation)
+   * [Why Meridio](#why-meridio)
+- [API](#api)
+   * [Gateway API and Kubernetes API](#gateway-api-and-kubernetes-api)
+      + [Gateway](#gateway)
+         - [GatewayClass](#gatewayclass)
+      + [L34Route](#l34route)
+      + [Service](#service)
+   * [GatewayRouter](#gatewayrouter)
+   * [API Nordix/Meridio Differences](#api-nordixmeridio-differences)
+- [Components](#components)
+   * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr)
+      + [Stateless-Load-Balancer (SLLB)](#stateless-load-balancer-sllb)
+      + [Router](#router)
+   * [Controller-Manager](#controller-manager)
+   * [Alternatives for Application Network Configuration Injection](#alternatives-for-application-network-configuration-injection)
+      + [[1] Annotation Injection](#1-annotation-injection)
+         - [[1.1] Dynamic Network Attachment](#11-dynamic-network-attachment)
+         - [[1.2] Network Daemon](#12-network-daemon)
+      + [[2] Sidecar](#2-sidecar)
+      + [[4] Static Configuration](#4-static-configuration)
+      + [Comparaison of the Alternatives for Application Network Configuration Injection](#comparaison-of-the-alternatives-for-application-network-configuration-injection)
+   * [Components Nordix/Meridio Differences](#components-nordixmeridio-differences)
+- [Data Plane](#data-plane)
+   * [DC Gateway to Meridio Gateway](#dc-gateway-to-meridio-gateway)
+   * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr-1)
+   * [Meridio Gateway to Endpoint (Application pod)](#meridio-gateway-to-endpoint-application-pod)
+   * [Endpoint (Application pod)](#endpoint-application-pod)
+   * [Dataplane Nordix/Meridio Differences](#dataplane-nordixmeridio-differences)
+- [Extra Features](#extra-features)
+   * [Port Address Translation (PAT)](#port-address-translation-pat)
+   * [Gateway Configuration](#gateway-configuration)
+   * [Resource Template](#resource-template)
+- [Prerequisites](#prerequisites)
+- [Multi-Tenancy](#multi-tenancy)
+- [Upgrade and Migration](#upgrade-and-migration)
+   * [Data Plane](#data-plane-1)
+   * [Meridio 2.x](#meridio-2x)
+   * [From Nordix/Meridio](#from-nordixmeridio)
+- [Project Structure and Implementation](#project-structure-and-implementation)
+   * [Projects](#projects)
+   * [Framework amd Design Pattern](#framework-amd-design-pattern)
+- [Evolution](#evolution)
+   * [Dynamic Resource Allocation](#dynamic-resource-allocation)
+   * [Service Type](#service-type)
+   * [Service Chaining](#service-chaining)
+- [Alternatives](#alternatives)
+   * [LoxiLB](#loxilb)
+   * [OVN-Kubernetes](#ovn-kubernetes)
+   * [F5](#f5)
+   * [Google](#google)
+   * [Cilium](#cilium)
 
 ## Summary
 
@@ -181,6 +183,8 @@ spec:
 
 In the above example, the L34Route is configured in the `Gateway` called `sllb-a`. The TCP IPv4 traffic with any source IP (`0.0.0.0/0`), any source port (port range `0-65535`), a destination IP `20.0.0.1` (`20.0.0.1/32`) and a port `4000` or `4001` will be steered towards the backend `service-a`.
 
+In addition to what has been shwon in the example, the `byteMatches` field matching bytes in the L4 header is also available.
+
 This API is not part of Gateway API but discussions are happening within the community about it here: [User reports for TCPRoute and UDPRoute (kubernetes-sigs/gateway-api/discussions#3475)](https://github.com/kubernetes-sigs/gateway-api/discussions/3475#discussioncomment-11522199) and [Layer 3 / load balancer / Service route (kubernetes-sigs/gateway-api/discussions#3351)](https://github.com/kubernetes-sigs/gateway-api/discussions/3351#discussioncomment-11522379).
 
 The names of the attributes are likely to change in this API, but the concepts and functionalities will remain the same.
@@ -269,8 +273,8 @@ Here below, a traffic flow diagram of Meridio 2.x:
 The Stateless-Load-Balancer-Router (SLLBR) is the workload (`Deployment`) instance(s) behind a `Gateway` object handling service-traffic. It is designed to provide high-performance packet forwarding without maintaining connection state, ensuring scalability and resilience.
 
 SLLBR is composed of two containers:
-* `Stateless-Load-Balancer`: Responsible for distributing incoming traffic across backend pods based on defined `L34Routes` and `Services`.
-* `Router`: Responsible for advertising VIPs to `GatewayRouter`.
+* `Stateless-Load-Balancer`: Responsible for distributing incoming traffic across backend pods based on defined `L34Routes` and `Services` handle by the `Gateway`.
+* `Router`: Responsible for advertising VIPs handled by the `Gateway` to `GatewayRouters`.
 
 To function correctly, SLLBR requires specific system settings (SYSCTLs) to be configured within the pod's network namespace. These settings include:
 * `forwarding` set to `1` to enable IP forwarding.
@@ -299,6 +303,10 @@ The Router container is responsible for running the routing suite Bird2 and adve
 
 The container continuously watches relevant Kubernetes objects such as `Gateway` and `GatewayRouter` to ensure that changes in the cluster are reflected in the Bird2 configuration in real time. 
 
+The controller-manager aggregating all VIPs handled by the `Gateway` into the `.status.Addresses`, the router watches these VIPs in order to advertise them to the `GatewayRouters` handled by the router.
+
+![Overview](resources/diagrams-advertise-vips.png)
+
 The readiness of the container is determined by its ability to successfully run Bird2 and establish communication with the Kubernetes API.
 
 To function properly, the container requires specific Linux capabilities and Kubernetes API access, including:
@@ -311,7 +319,9 @@ To function properly, the container requires specific Linux capabilities and Kub
 
 The Controller-Manager (Operator) is responsible for reconciling and managing Kubernetes objects that belong to the appropriate `GatewayClass`, ensuring that the correct resources are deployed and maintained according to the specified configuration.
 
-A key function of the Controller Manager is to reconcile and manage `Gateway` objects to deploy and maintain the Stateless-Load-Balancer-Router (SLLBR) component.
+A key function of the Controller Manager is to reconcile and manage `Gateway` objects to deploy and maintain the Stateless-Load-Balancer-Router (SLLBR) component based on the `Gateway` specs.
+
+![Overview](resources/diagrams-SLLBR-Managed.png)
 
 Additionally, the Controller Manager handles the reconciliation of `EndpointSlice` objects which consist in maintaining endpoint information (IP and Status) for the pods selected by the `Services` managed by the associated `Gateways`. This ensures that traffic is correctly routed to the appropriate backend instances maintaining service availability and performance.
 
@@ -338,7 +348,7 @@ Similarly, VIPs must correspond to those served by the `Gateway`. While not an i
 
 There are multiple ways to address this challenge, each offering different levels of automation, flexibility, and complexity. More solutions could also be imagined such as direct server return (DSR) to solve this challenge.
 
-#### Annotation Injection
+#### [1] Annotation Injection
 
 In this solution, source-based routes and VIPs required by the application are exposed through pod annotations. These annotations represent the desired state and provide visibility into the intended network configuration. This approach allows another component to detect these annotations and inject the necessary configuration directly into the pod ensuring the pod network configuration is adjusted accordingly based on this desired state. 
 
@@ -346,7 +356,7 @@ In this solution, source-based routes and VIPs required by the application are e
 
 Different implementation approaches can be considered to achieve annotation-based injection, each with its own trade-offs. Two primary methods are highlighted: one that places the responsibility on the infrastructure, ensuring that network configurations are applied automatically with minimal privileges at the pod level, and another that requires more privileges within the pod itself, offering greater flexibility but increasing security considerations.
 
-##### Dynamic Network Attachment
+##### [1.1] Dynamic Network Attachment
 
 To inject VIP and SBRs in the pod based on its annotations, this solution leverages Multus-Thick and [Multus-Dynamic-Networks-Controller](https://github.com/k8snetworkplumbingwg/multus-dynamic-networks-controller), which provide the capability to add and reconcile annotations while a pod is running. This allows for dynamic network configuration changes without requiring pod restarts.
 
@@ -360,7 +370,7 @@ Here is an example below of how the behavior will be when adding a new VIP and w
 | -------- | ------- | ------- |
 | ![Overview](resources/diagrams-MACVLAN-1.png) | ![Overview](resources/diagrams-MACVLAN-2.png) | ![Overview](resources/diagrams-MACVLAN-3.png) |
 
- In phase 1, the system operates with its current configuration, handling traffic as expected. During phase 2, a new network attachment is introduced to accommodate updated requirements, such as adding a new VIP (`40.0.0.1/32`) and modifying source-based routes to reflect the upcoming removal of SLLR-2. Although both configurations temporarily coexist, they are designed to avoid conflicts. In phase 3, the outdated configuration is removed, achieving the network update without traffic disruption. The only noticeable change is the source MAC address in response packets which will now reflect the newly added macvlan interface.
+ In phase 1, the system operates with its current configuration, handling traffic as expected. During phase 2, a new network attachment is introduced to accommodate updated requirements, such as adding a new VIP (`40.0.0.1/32`) and modifying source-based routes to reflect the upcoming removal of SLLR-2. Although both configurations temporarily coexist, they are designed to avoid conflicts (Note: the table ID of the new SBR is different than the old one). In phase 3, the outdated configuration is removed, achieving the network update without traffic disruption. The only noticeable change is the source MAC address in response packets which will now reflect the newly added macvlan interface.
 
 Here is an example below of a CNI config used to config the VIPs and SBRs on the secondary network interface in an application pod:
 ```json
@@ -411,6 +421,8 @@ In this scenario, managing `NetworkAttachmentDefinition` objects can be complex,
 
 Another potential challenge with this solution is that upon Meridio 2.x uninstallation, network configurations may remain on the application pod. However, they can be easily removed by clearing the corresponding pod annotations.
 
+Such solution which relies on adding and removing `NetworkAttachmentDefinition` with MACVLAN CNI alongside the SBR CNI is necessary because CNI does not have any concept of update. Only `ADD` and `DEL` operations are available in CNI, therefore Multus and the Multus-Dynamic-Networks-Controller can only add and del `NetworkAttachmentDefinition` on a pod. Relying on MACVLAN on top of the secondary network interface is a solution to add and remove VIPs and SBRs without any interference with the secondary network interface and with the previously configured VIPs and SBRs.
+
 Adopting this approach also implies that other secondary network providers must support dynamic network attachment, which would require additional development effort for each supported solution.
 
 To perform these operations, a new controller requires access to a set of Kubernetes API resources:
@@ -418,7 +430,7 @@ To perform these operations, a new controller requires access to a set of Kubern
 
 This approach has been demonstrated in the proof-of-concept available here: [LionelJouin/l-3-4-gateway-api-poc](https://github.com/LionelJouin/l-3-4-gateway-api-poc).
 
-##### Network Daemon
+##### [1.2] Network Daemon
 
 In this solution, a DaemonSet is deployed to manage the pod network configuration by reading the pod annotations. The daemon accesses the network namespace of the pod and removes any outdated network configurations and applies new ones based on the annotations of the pod (expected state).
 
@@ -432,7 +444,7 @@ During uninstallation, residual configurations could be left on the application 
 
 This solution is demonstrated in the proof of concept at: [LionelJouin/meridio-2.x](https://github.com/LionelJouin/meridio-2.x).
 
-#### Sidecar
+#### [2] Sidecar
 
 In this solution, a container with specific privileges is running as a sidecar within the application pod to configure source-based routes and VIPs tailored to the services the pod is serving. This sidecar ensures that the networking configuration is dynamically adjusted. 
 
@@ -440,7 +452,7 @@ To perform these operations, the sidecar requires access to a set of Kubernetes 
 
 The sidecar concept was demonstrated in the early phase of Nordix/Meridio: [v0.1.0-alpha](https://github.com/Nordix/Meridio/tree/v0.1.0-alpha)
 
-#### Static Configuration
+#### [4] Static Configuration
 
 In this scenario, the user must reserve dedicated internal IPs for allocation to the SLLBRs. Additional configuration is also required on the user side to pre-configure the VIPs and source-based routes towards these dedicated internal IPs. These dedicated internal IPs will be picked by the SLLBRs and configured on their own network interface by themselves.
 
@@ -454,6 +466,24 @@ Here is an example below on the behavior when scaling down the SLLBRs:
 In phase 1, SLLBR-1 is assigned the IP `192.2.1.251` and SLLBR-2 is assigned `192.2.1.252`, so the outgoing traffic from the application pod is being routed only between these two pods. In phase 2, when the SLLBRs are scaled down, `192.2.1.251` is released and reassigned to SLLBR-3. 
 
 This has not been demonstrated, there may be issues when scaling SLLBRs in the application pod due to neighbor table cache, potentially causing disruptions in traffic routing.
+
+#### Comparaison of the Alternatives for Application Network Configuration Injection
+
+Here is below a table compairing the different alternatives.
+| Option | Multus Dependent | Complexity | Ease of Use | Privileges | Troubleshooting | PoC | Footprint |
+| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
+| [1.1] Dynamic Network Attachment | Yes | Complex | Easy | Minimal | Complex | Yes | Moderate |
+| [1.2] Network Daemon | No | Easy / Moderate | Easy | Important | Easy / Moderate | Yes | Moderate |
+| [2] Sidecar | No | Easy / Moderate | Moderate | Moderate | Moderate | Yes | Moderate / High |
+| [4] Static Configuration | No | Complex | Complex | Minimal | Complex | No | Minimal |
+
+* **Multus Dependent**: Does the option depend on Multus?
+* **Complexity**: How complex is the option to implement?
+* **Ease of Use**: From the user perspective, how easy to use the option is?
+* **Privileges**: How much privileges are required to implement the option?
+* **Troubleshooting**: How easy is it to troubleshoot a potential issue?
+* **PoC**: Has this option been demonstrated via a PoC?
+* **Footprint**: Does the option consume a lot of resources?
 
 ### Components Nordix/Meridio Differences
 
@@ -521,9 +551,13 @@ Below is a comparison of the dataplane overview in Nordix/Meridio and Meridio 2.
 
 TODO
 
-### Gateway Scaling
+### Gateway Configuration
 
-TODO
+replicas, node affinity, Resources (CPU, Memory)...
+
+### Resource Template
+
+SLLBR not hard-coded in the Controller-Manager but exposed in a configmap.
 
 ## Prerequisites
 
@@ -581,7 +615,7 @@ Finally, the Stateless-Load-Balancer project could bring together all these elem
 
 The [Controller-runtime](https://github.com/kubernetes-sigs/controller-runtime), which has been previously used in Nordix/Meridio, remains a viable option for handling simple use cases. It follows a common Kubernetes pattern that is efficient, easy to develop, and straightforward to test. This makes it an ideal choice for standard reconciliation tasks that do not require deep customization.
 
-For more advanced use cases that demand greater control and performance, a custom informer-based controller can be implemented. This approach (here is an example: [kubernetes/kubernetes/pkg/controller/endpointslice](https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/endpointslice/endpointslice_controller.go))) provides fine-grained control over resource handling and offers improved performance at the cost of increased complexity in both implementation and maintenance. It requires a deeper understanding of Kubernetes internals but allows for highly optimized operations.
+For more advanced use cases that demand greater control and performance, a custom informer-based controller can be implemented. This approach (here is an example: [kubernetes/kubernetes/pkg/controller/endpointslice](https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/endpointslice/endpointslice_controller.go)) provides fine-grained control over resource handling and offers improved performance at the cost of increased complexity in both implementation and maintenance. It requires a deeper understanding of Kubernetes internals but allows for highly optimized operations.
 
 The upcoming Generic EndpointSlice Controller, as discussed in the [sig-network meeting on 2025-01-16](https://docs.google.com/document/d/1_w77-zG_Xj0zYvEMfQZTQ-wPP4kXkpGD8smVtW_qqWM/edit?tab=t.0), presents an opportunity for managing EndpointSlices efficiently within the system. Leveraging this controller could simplify EndpointSlice management while maintaining optimal performance and scalability.
 
@@ -591,30 +625,21 @@ For API and CRD development, [Kubebuilder](https://github.com/kubernetes-sigs/ku
 
 ### Dynamic Resource Allocation
 
-[kubernetes-sigs/cni-dra-driver](https://github.com/kubernetes-sigs/cni-dra-driver)
+A new project, [kubernetes-sigs/cni-dra-driver](https://github.com/kubernetes-sigs/cni-dra-driver), has been initiated to offer functionalities similar to Multus but with enhanced capabilities by leveraging Device Resource Allocation (DRA), a recent Kubernetes feature. This enables scheduling capabilities, with for example, the ongoing work under [KEP 5075 (support dynamic device provisioning)](https://github.com/kubernetes/enhancements/issues/5075) which focuses on supporting dynamic device provisioning for virtual devices.
 
-Provides Scheduling
+Validation of CNI configurations is also planned and under development with progress being tracked in [containernetworking/cni#1132](https://github.com/containernetworking/cni/issues/1132).
 
-newly created KEP allowing the allocation of virtual devices 
+The solution will provide native integration with Kubernetes, allowing network interfaces to be requested directly via the API while maintaining the flexibility to specify different providers and implementations. Additionally, reporting of network interface details such as interface name, IPs, and MAC addresses is already supported through [KEP-4817 (Resource Claim Status with possible standardized network interface data)](https://github.com/kubernetes/enhancements/issues/4817) and has been implemented in Kubernetes v1.32.
 
-[KEP 5075: support dynamic device provisioning](https://github.com/kubernetes/enhancements/issues/5075)
-
-Provides validation [containernetworking/cni#1132](https://github.com/containernetworking/cni/issues/1132)
-
-Provides native integration with the Kubernetes
-Status for network interfaces 
-merged and part of Kubernetes v1.32
-[KEP-4817: Resource Claim Status with possible standardized network interface data](https://github.com/kubernetes/enhancements/issues/4817)
-
-Provides Downward API
+If adopted, this approach could potentially enable pod network configurations to be managed via DRA taking advantage of above-named features enabling a more seamless integration with Kubernetes.
 
 ### Service Type
 
-Example via a potential Stateful Load-Balancer
+An evolution of this project could be the implementation of different types of gateway, handling different type of traffic and routes, or even handling the same but in a different way.
+
+as an example, a potential Stateful Load-Balancer or an accelerated packet processor/router workload via DPDK could be cited. 
 
 This would apply to any other type of implementation providing feature not suiting the stateless-Load-Balancer project.
-
-Accelerate packet processing workload via DPDK
 
 ### Service Chaining
 
