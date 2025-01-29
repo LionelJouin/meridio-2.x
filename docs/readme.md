@@ -20,6 +20,7 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
       + [Service](#service)
    * [GatewayRouter](#gatewayrouter)
    * [API Nordix/Meridio Differences](#api-nordixmeridio-differences)
+      + [Network Configuration and Endpoint Registration](#network-configuration-and-endpoint-registration)
 - [Components](#components)
    * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr)
       + [Stateless-Load-Balancer (SLLB)](#stateless-load-balancer-sllb)
@@ -40,10 +41,11 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
    * [Endpoint (Application pod)](#endpoint-application-pod)
    * [Dataplane Nordix/Meridio Differences](#dataplane-nordixmeridio-differences)
 - [Extra Features](#extra-features)
-   * [Port Address Translation (PAT)](#port-address-translation-pat)
    * [Gateway Configuration](#gateway-configuration)
    * [Resource Template](#resource-template)
+   * [Port Address Translation (PAT)](#port-address-translation-pat)
 - [Prerequisites](#prerequisites)
+   * [Prerequisites Nordix/Meridio Differences](#prerequisites-nordixmeridio-differences)
 - [Multi-Tenancy](#multi-tenancy)
 - [Upgrade and Migration](#upgrade-and-migration)
    * [Data Plane](#data-plane-1)
@@ -56,6 +58,7 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
    * [Dynamic Resource Allocation](#dynamic-resource-allocation)
    * [Service Type](#service-type)
    * [Service Chaining](#service-chaining)
+   * [Service as BackendRefs](#service-as-backendrefs)
 - [Alternatives](#alternatives)
    * [LoxiLB](#loxilb)
    * [OVN-Kubernetes](#ovn-kubernetes)
@@ -87,7 +90,15 @@ The evolution also enables an enhanced networking control giving users more flex
 
 ### Why Meridio
 
-TODO
+Meridio is an open-source project designed to address the unique networking challenges faced by telecommunications Cloud-Native Functions (CNFs). It meets the growing need for advanced and specialized traffic distribution within cloud-native environments by offering a solution that ensures isolation, scalability, and flexibility.
+
+One of the key strengths is its support for secondary networking which enhances security, performance, and fault tolerance. By isolating traffic, it prevents failures in one network segment from affecting others, a critical feature for telecommunications and enterprise environments where uptime and security are essential.
+
+By leveraging routing protocols such as BGP and BFD, Meridio has the ability to attract external traffic efficiently. This ensures reliable service advertisement and link supervision, allowing traffic to be distributed effectively across different network services.
+
+The architecture of Meridio also enables the development of specialized network services. Notably, it includes a stateless and NATless load balancer optimized for TCP, UDP, and SCTP traffic. This load balancer provides traffic classification steering traffic into multiple different network services. The stateless nature of the load balancer offers advantages such as horizontal scalability without relying on shared state information, reducing latency, and simplifying management, deployment, monitoring, and troubleshooting.
+
+In summary, Meridio offers a comprehensive and flexible solution for modern cloud-native networking. Its focus on secondary networking, efficient external traffic attraction, and the development of specialized network services makes it an ideal choice for organizations looking to optimize their network infrastructure, particularly in telecommunications and advanced enterprise environments.
 
 ## API
 
@@ -213,7 +224,7 @@ In the example above, the `Service` is set to be configured by and running in th
 
 The label `meridio-experiment/dummy-service-selector=true` is ignored by the implementation. The reason to have the label is to disable the main Kubernetes EndpointSlice Controller which selects the primary pod IPs. The [KEP 4770 (EndpointSlice Controller Flexibility)](https://github.com/kubernetes/enhancements/issues/4770) is proposing a solution to avoid this situation and provide a native Kubernetes feature.
 
-Discussions are currently happening in the Gateway API community towards an alternative to `Service` as a backend. The discussion ([Google Doc](https://docs.google.com/document/d/1N-C-dBHfyfwkKufknwKTDLAw4AP2BnJlnmx0dB-cC4U/edit?tab=t.0#heading=h.7a7xx7cbdmx2)) is about a new object named `EndpointSelector` which would provide a similar `selector` field as the `Service` with more possibility to extend it for modern solutions.
+Discussions are currently happening in the Gateway API community towards an alternative to `Service` as a backend. The [GEP-3539](https://github.com/kubernetes-sigs/gateway-api/issues/3539) is about a new object named `EndpointSelector` which would provide a similar `selector` field as the `Service` with more possibility to extend it for modern solutions.
 
 ### GatewayRouter
 
@@ -265,6 +276,21 @@ Here below, a traffic flow diagram of Nordix/Meridio:
 
 Here below, a traffic flow diagram of Meridio 2.x:
 ![Overview](resources/diagrams-Flow-v2.png)
+
+#### Network Configuration and Endpoint Registration
+
+A major difference between Nordix/Meridio and Meridio 2.x is the way networks are configured and how endpoints are registered to services.
+
+In Nordix/Meridio, network configuration and endpoint registration were tightly coupled with Network Service Mesh (NSM). A sidecar container named TAPA (Target Access Point Ambassador) was responsible for managing these tasks. Using a custom TAP (Target Access Point) API, users requested TAPA, which in turn requested connectivity with the network service via NSM. The network interface was then configured automatically within the application pod. Once the network was configured in the pod, TAPA registered the pod as an endpoint via the NSP (Network Service Platform) API, allowing the pod to start receiving traffic. This process was opaque to the user, as the internal network configuration and the endpoints registered were not exposed via the Nordix/Meridio API nor the Kubernetes API.
+
+Meridio 2.x introduces a more user-centric and flexible approach to network configuration and endpoint registration. Users are now responsible for providing and configuring the network(s) for their application pods. Endpoint registration is driven by Kubernetes labels. Users select the pods that will serve as endpoints behind a service using label selectors. Once selected, the pods receive additional network configurations (VIPs and SBRs, still being configured by Meridio 2.x depending on the implementation) and start receiving traffic. This approach simplifies endpoint management and leverages Kubernetes-native mechanisms for service discovery and load balancing.
+
+While the Nordix/Meridio approach simplified network management by automating configurations, it lacked flexibility and transparency. Users had limited control over the network configurations, and the tight coupling with NSM made it difficult to integrate with other network solutions. The approach taken by Meridio 2.x offers several benefits. By decoupling network management from the infrastructure, it gives more control and transparency to the users and supports a wide range of network configurations, accommodating different user needs and requirements. The use of Kubernetes-native mechanisms for endpoint registration also simplifies integration with other network solutions and reduces dependencies on specific frameworks and APIs.
+
+Below is a comparison of the endpoint registration in Nordix/Meridio and Meridio 2.x:
+| Nordix/Merdio | Meridio 2.x |
+| -------- | ------- |
+| ![Overview](resources/diagrams-target-registration-v1.png) | ![Overview](resources/diagrams-target-registration-v2.png) |
 
 ## Components
 
@@ -497,11 +523,6 @@ Below is a comparison of the configuration management in Nordix/Meridio and Meri
 | -------- | ------- |
 | ![Overview](resources/diagrams-Configuration-v1.png) | ![Overview](resources/diagrams-Configuration-v2.png) |
 
-Below is a comparison of the endpoint registration in Nordix/Meridio and Meridio 2.x:
-| Nordix/Merdio | Meridio 2.x |
-| -------- | ------- |
-| ![Overview](resources/diagrams-target-registration-v1.png) | ![Overview](resources/diagrams-target-registration-v2.png) |
-
 ## Data Plane
 
 ### DC Gateway to Meridio Gateway
@@ -547,25 +568,73 @@ Below is a comparison of the dataplane overview in Nordix/Meridio and Meridio 2.
 
 ## Extra Features
 
+### Gateway Configuration
+
+The `Gateway` object in Gateway API introduces the `.spec.infrastructure.parametersRef` field which allows the individual configuration of Gateways. This configuration is read by the controller-manager, which then manages the Stateless-Load-Balancer-Router (SLLBR) instances based on the specified configuration.
+
+This configuration provides a flexible way to tailor the deployment of SLLBRs to meet specific requirements. For example, it can be used to set the number of SLLBR replicas, define node affinity rules, and specify resource usage parameters such as CPU and memory. This level of customization ensures that the Gateway can be optimized for various use cases and performance needs.
+
+Here an example below with a `Gateway` and its configuration.
+```yaml
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: sllb-a
+spec:
+  gatewayClassName: meridio-experiment/stateless-load-balancer
+  infrastructure:
+    parametersRef:
+      kind: ConfigMap
+      name: sllb-a-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sllb-a-config
+data:
+  config.conf: |-
+    apiVersion: meridio.experiment.gateway.api.poc/v1alpha1
+    kind: SLLBRConfig
+    replicas: 2
+    sllb:
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    router:
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+```
+
+### Resource Template
+
+Similar to Nordix/Meridio, Meridio 2.x exposes the deployment templates of the resources managed by the controller-manager, specifically the Stateless-Load-Balancer-Router (SLLBR), within the deployment of Meridio itself. These templates are then not hard-coded within the controller-manager, providing users with greater control over the actual SLLBR deployment.
+
+This approach offers several advantages. Users can tune the unmanaged deployment specifications to better suit their needs  including enforcing security and modifying the SLLBR lifecyle. Users have the flexibility to enforce additional labels, annotations and the deployment name ensuring that it aligns with their naming conventions and organizational standards.
+
 ### Port Address Translation (PAT)
 
 TODO
 
-### Gateway Configuration
-
-replicas, node affinity, Resources (CPU, Memory)...
-
-### Resource Template
-
-SLLBR not hard-coded in the Controller-Manager but exposed in a configmap.
-
 ## Prerequisites
 
-The solution requires a Kubernetes cluster running at least version 1.28. Alternatively, distributions such as OpenShift are supported, provided they meet the necessary requirements. In some cases, privilege escalation might be required for proper functionality.
+The solution requires a Kubernetes cluster running at least version 1.28. Alternatively, distributions such as OpenShift are supported, provided they meet the necessary requirements. In some cases, privilege escalation might be required for proper functionality. The kernel version must be at least 5.15 to support all features.
 
 Multus is essential to provide secondary network interfaces to pods. Depending on the specific implementation, specific Multus version (Multus-Thick) and additional components such as the Multus-Dynamic-Networks-Controller may also be required.
 
 Furthermore, the Gateway API is a mandatory component to some parts of the API.
+
+### Prerequisites Nordix/Meridio Differences
+
+Apart from the requirement for the Gateway API, Nordix/Meridio shared the same prerequisites as Meridio 2.x with the additional requirement that Spire and Network Service Mesh (NSM) must be operational within the cluster.
 
 ## Multi-Tenancy
 
@@ -598,6 +667,8 @@ All components of Meridio 2.x are stateless, meaning they only reconcile objects
 Meridio 2.x is not backward compatible with Nordix/Meridio, meaning an upgrade without traffic disturbance or configuration changes is not possible. Meridio 2.x does not handle or manage any configuration from Nordix/Meridio, and vice versa.
 
 While both versions can be deployed alongside each other within the same environment, there are no guarantees that source-based routing or any other networking configuration within the application pods will not encounter conflicts.
+
+![Overview](resources/diagrams-Migration.png)
 
 ## Project Structure and Implementation
 
@@ -635,15 +706,23 @@ If adopted, this approach could potentially enable pod network configurations to
 
 ### Service Type
 
-An evolution of this project could be the implementation of different types of gateway, handling different type of traffic and routes, or even handling the same but in a different way.
+An evolution of this project could be the implementation of different types of gateways to handle varying types of traffic and routes, or even to process the same traffic in alternative ways. For example, a potential development could involve creating a Stateful Load-Balancer which would provide persistent connections, or an accelerated packet processor/router workload leveraging DPDK (Data Plane Development Kit) for enhanced performance in high-throughput environments.
 
-as an example, a potential Stateful Load-Balancer or an accelerated packet processor/router workload via DPDK could be cited. 
-
-This would apply to any other type of implementation providing feature not suiting the stateless-Load-Balancer project.
+This evolution extends beyond just these examples. Any future implementation that introduces features not aligned with the current Stateless Load-Balancer project could be explored in a newer project providing more tailored and specialized solutions to meet evolving and/or different network needs.
 
 ### Service Chaining
 
-supported out-of-the-box
+Service chaining is supported out-of-the-box in this project. By configuring a Gateway with appropriate labels, it can seamlessly act as an endpoint for services running on other gateways. The ability to chain services in this way is inherently supported by the current architecture without requiring additional implementation, making it a straightforward and efficient feature to leverage.
+
+![Overview](resources/diagrams-service-chaining.png)
+
+### Service as BackendRefs
+
+The Gateway API community is actively discussing an alternative to the `Service` object as a backend. The [GEP-3539](https://github.com/kubernetes-sigs/gateway-api/issues/3539) centers around a proposed new object called `EndpointSelector` which would offer a similar `selector` field as the `Service` object while being designed for modern and extensible solutions. The intent is to create a more adaptable and future-proof approach to backend selection.
+
+The `Service` object, being a part of the core Kubernetes API, has grown increasingly complex over time, making it difficult to extend or introduce new features. For instance, [KEP-4770](https://github.com/kubernetes/enhancements/issues/4770), which proposed a straightforward feature to disable the EndpointSlice Controller using a label, was ultimately rejected by the community due to concerns about further complicating the `Service` object.
+
+The introduction of an `EndpointSelector` could simplify backend management in the Gateway API and potentially serve as a replacement for the `Service` object in backendRefs for routes. This would enable the Gateway API to evolve in a way that aligns more closely with modern use cases and provides greater flexibility for managing traffic. Additionally, The generic EndpointSlice Controller (mentioned during [sig-network meeting on 2025-01-16](https://docs.google.com/document/d/1_w77-zG_Xj0zYvEMfQZTQ-wPP4kXkpGD8smVtW_qqWM/edit?tab=t.0)) could potentially be leveraged for this use case.
 
 ## Alternatives
 
@@ -666,3 +745,19 @@ TODO
 ### Cilium
 
 TODO
+
+## References
+
+* Service Exposure Through Secondary Network Attachment In Kubernetes - Kai Levin - 2024 - https://www.diva-portal.org/smash/get/diva2:1871248/FULLTEXT01.pdf
+* Nordix/Meridio - Website - https://meridio.nordix.org/
+* Nordix/Meridio - Reposity - https://github.com/nordix/meridio
+* Meridio 2.x - PoC - https://github.com/LionelJouin/l-3-4-gateway-api-poc
+* Meridio 2.x - PoC - https://github.com/LionelJouin/meridio-2.x
+* Nordix/nfqueue-loadbalancer - NFQLB - https://github.com/Nordix/nfqueue-loadbalancer
+* GEP-3539 - https://github.com/kubernetes-sigs/gateway-api/issues/3539
+* KEP-4817 - Resource Claim Status with possible standardized network interface data - https://github.com/kubernetes/enhancements/issues/4817
+* KEP 5075 - Support Dynamic Device Provisioning - https://github.com/kubernetes/enhancements/issues/5075
+* KEP-4770 - EndpointSlice Controller Flexibility - https://github.com/kubernetes/enhancements/issues/4770
+* CNI-DRA-Driver - https://github.com/kubernetes-sigs/cni-dra-driver
+* SIG-Network - Meeting Notes - https://docs.google.com/document/d/1_w77-zG_Xj0zYvEMfQZTQ-wPP4kXkpGD8smVtW_qqWM/edit?tab=t.0
+* Gateway API - https://gateway-api.sigs.k8s.io
