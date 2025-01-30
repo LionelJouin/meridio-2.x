@@ -34,6 +34,7 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
       + [[4] Static Configuration](#4-static-configuration)
       + [Comparaison of the Alternatives for Application Network Configuration Injection](#comparaison-of-the-alternatives-for-application-network-configuration-injection)
    * [Components Nordix/Meridio Differences](#components-nordixmeridio-differences)
+      + [Footprint](#footprint)
 - [Data Plane](#data-plane)
    * [DC Gateway to Meridio Gateway](#dc-gateway-to-meridio-gateway)
    * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr-1)
@@ -65,6 +66,7 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
    * [F5](#f5)
    * [Google](#google)
    * [Cilium](#cilium)
+- [References](#references)
 
 ## Summary
 
@@ -118,7 +120,7 @@ metadata:
 spec:
   gatewayClassName: meridio-experiment/stateless-load-balancer
   listeners: # This is to be ignored
-  - name: all 
+  - name: all
     port: 4000
     protocol: TCP
   infrastructure:
@@ -130,7 +132,7 @@ spec:
 
 Here is an example above of how a `Gateway` would look like. Once deployed, the operator/controller will be in charge of deploying the component for the gateway to provide the functionalities described by the GatewayClass `meridio-experiment/stateless-load-balancer`. 
 
-The `.spec.infrastructure` field represents some configuration specific to the workload being deployed. The `k8s.v1.cni.cncf.io/networks` will be added to the `Gateway` workloads indicating the pod will be attached to these networks via Multus. `meridio-experiment/networks` and `meridio-experiment/network-subnets` will indicate that the IPs of the endpoints behind the services being handled by the `Gateway` must be in the subnet `169.111.100.0/24` on the network provided by Multus via `macvlan-nad-1`.
+The `.spec.infrastructure` field represents some configuration specific to the workload being deployed. The `k8s.v1.cni.cncf.io/networks` are added to the `Gateway` workloads, so pods (SLLBRs) will be attached to these networks via Multus when they are deployed. `meridio-experiment/networks` indicates the network(s) the application pods must be attached to if they want to be considered as an endpoint behind the services (service being handled by the `Gateway`). `meridio-experiment/network-subnets` indicates in which subnet(s) the endpoint IP(s) are. In this example, the endpoints (application pods behind the service) must have the network interface provided by Multus via `macvlan-nad-1` and the endpoint IPs for these pods will be all IPs in the subnet `169.111.100.0/24` for the network interface (provided via `macvlan-nad-1`).
 
 For more control, if required in the future, another sub-field named `parametersRef` allows passing a configuration object.
 
@@ -522,6 +524,39 @@ Below is a comparison of the configuration management in Nordix/Meridio and Meri
 | Nordix/Merdio | Meridio 2.x |
 | -------- | ------- |
 | ![Overview](resources/diagrams-Configuration-v1.png) | ![Overview](resources/diagrams-Configuration-v2.png) |
+
+#### Footprint
+
+Resource consumption for pods running on Nordix/Meridio and Meridio 2.x has been measured under idle conditions (no traffic). To ensure a fair comparison, the configuration and environment were replicated as closely as possible across both setups:
+* Cluster Setup: 3 nodes (1 control plane, 2 worker nodes), 1 external DC-Gateway
+* Workload: 4 application pods, 2 load-balancer instances
+
+Below is a table of the footprint of the Nordix/Meridio (v1.1.6 and NSM v1.13.2) components:
+| Component | Prerequisite | CPU | Memory | Comment |
+| -------- | ------- | ------- | ------- | ------- |
+| Operator | No | 1m | 16Mi |  |
+| Stateless-LB-Frontend (stateless-lb) | No | 4m | 23Mi |  |
+| Stateless-LB-Frontend (frontend) | No | 8m | 12Mi |  |
+| Proxy | No | 5m | 13Mi | This component is a Daemonset |
+| TAPA | No | 3m | 9Mi | This component is a sidecar container running on application pods |
+| NSP | No | 5m | 17Mi |  |
+| IPAM | No | 5m | 10Mi |  |
+| nsmgr | Yes | 16m | 50Mi | This component is a Daemonset |
+| nsm-forwarder-vpp | Yes | 69m | 330Mi | This component is a Daemonset |
+| nsm-registry | Yes | 10m | 34Mi |  |
+| spire-agent | Yes | 6m | 29Mi | This component is a Daemonset |
+| spire-server (server) | Yes | 4m | 25Mi |  |
+| spire-server (controller-manager) | Yes | 3m | 18Mi |  |
+| Multus | Yes | 1m | 19Mi | This component is a Daemonset |
+
+Below is a table of the footprint of the Meridio 2.x components:
+| Component | Prerequisite | CPU | Memory | Comment |
+| -------- | ------- | ------- | ------- | ------- |
+| Controller-Manager | No | 1m | 16Mi |  |
+| SLLBR (SLLB) | No | 1m | 16Mi |  |
+| SLLBR (Router) | No | 2m | 9Mi |  |
+| Network Daemon | No | 1m | 10Mi | This component is a Daemonset |
+| Multus | Yes | 1m | 19Mi | This component is a Daemonset |
 
 ## Data Plane
 
