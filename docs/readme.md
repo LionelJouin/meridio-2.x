@@ -35,6 +35,7 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
       + [Comparaison of the Alternatives for Application Network Configuration Injection](#comparaison-of-the-alternatives-for-application-network-configuration-injection)
    * [Components Nordix/Meridio Differences](#components-nordixmeridio-differences)
       + [Footprint](#footprint)
+      + [Privileges](#privileges)
 - [Data Plane](#data-plane)
    * [DC Gateway to Meridio Gateway](#dc-gateway-to-meridio-gateway)
    * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr-1)
@@ -466,7 +467,13 @@ The DaemonSet is deployed alongside Meridio 2.x so it can access the network nam
 
 Status information about the network configuration is captured and reported within pod annotations by the network daemon. This ensures that the previously applied configurations can be retrieved and referenced if the expected state needs to be updated, re-applied or removed. This approach also provides visibility into the system's configuration over time.
 
-To function properly, the DaemonSet requires access to the Kubernetes API and CRI API to locate and modify the network namespace of the pods. Additionally, specific capabilities (to be clarified) are needed to manipulate the network namespace of the pods.
+To function properly, the container requires specific host directories mounted, Linux capabilities, CRI API and Kubernetes API access, including:
+* `/run/netns/` mounted to access the network namspace of the pods.
+* `/run/containerd/containerd.sock` mounted to access the CRI API.
+* `SYS_ADMIN` to access the network namspace of the pods.
+* `NET_ADMIN` to configure network settings such as routing and IP addresses.
+* `Kubernetes API`:`patch`, `update` , `watch`, `list` and `get` the `Pod` object.
+* `Kubernetes API`: `watch`, `list` and `get` the `Gateway`, `L34Route` and `Service` objects.
 
 During uninstallation, residual configurations could be left on the application pod. A job running on each node can be used to clean up any leftover network configurations, ensuring the system is fully cleaned after Meridio 2.x is removed.
 
@@ -557,6 +564,32 @@ Below is a table of the footprint of the Meridio 2.x components:
 | SLLBR (Router) | No | 2m | 9Mi |  |
 | Network Daemon | No | 1m | 10Mi | This component is a Daemonset |
 | Multus | Yes | 1m | 19Mi | This component is a Daemonset |
+
+#### Privileges
+
+Below is a table of the privileges required for Nordix/Meridio (v1.1.6 and NSM v1.13.2) components:
+| Component | Kubernetes API | `Privileged: true` | Capabilities | Sysctl | Host Access | Comment |
+| -------- | ------- | ------- | ------- | ------- | ------- | ------- |
+| Operator | Yes | No | No | No | `hostPath` (Spire) | |
+| Stateless-LB-Frontend | No | No | Yes (`NET_ADMIN`, `IPC_LOCK`, `IPC_OWNER`) | Yes (`forwarding`, `fib_multipath_hash_policy`, `rp_filter`, `fwmark_reflect`) | `hostPath` (NSM, Spire) | |
+| Proxy | No | No | Yes (`NET_ADMIN`) | Yes (`forwarding`, `accept_dad`, `fib_multipath_hash_policy`, `rp_filter`) | `hostPath` (NSM, Spire) | This component is a Daemonset |
+| TAPA | No | No | No | No | `hostPath` (NSM, Spire) | This component is a sidecar container running on application pods |
+| NSP | Yes | No | No | No | `hostPath` (Spire) |  |
+| IPAM | No | No | No | No | `hostPath` (Spire) |  |
+| nsmgr | Yes | No | No | No | `hostPath` (NSM, Spire) | This component is a Daemonset |
+| nsm-forwarder-vpp | No | Yes | N/A | No | `hostNetwork`, `hostPID`, `hostPath` (NSM, Spire, Kubelet, `/sys/fs/cgroup`, `/dev/vfio`) | This component is a Daemonset |
+| nsm-registry | Yes | No | No | No | `hostPath` (NSM, Spire) |  |
+| spire-agent | Yes | No | No | No | `hostPath` (Spire) | This component is a Daemonset |
+| spire-server | Yes | No | No | No | `hostPath` (Spire) |  |
+| Multus | Yes | Yes | N/A | No | `hostPath` (`/etc/cni/net.d`, `/opt/cni/bin`) | This component is a Daemonset |
+
+Below is a table of the privileges for Meridio 2.x components:
+| Component | Kubernetes API | `Privileged: true` | Capabilities | Sysctl | Host Access | Comment |
+| -------- | ------- | ------- | ------- | ------- | ------- | ------- |
+| Controller-Manager | Yes | No | No | No | No |  |
+| SLLBR | Yes | No | Yes (`NET_ADMIN`, `IPC_LOCK`, `IPC_OWNER`) | Yes (`forwarding`, `fib_multipath_hash_policy`, `rp_filter`, `fwmark_reflect`, `ip_local_port_range`) | No |  |
+| Network Daemon | Yes | No | Yes (`SYS_ADMIN`, `NET_ADMIN`) | No | `hostPath` (`/run/netns/`, `/run/containerd/containerd.sock`) | This component is a Daemonset |
+| Multus | Yes | Yes | N/A | No | `hostPath` (`/etc/cni/net.d`, `/opt/cni/bin`) | This component is a Daemonset |
 
 ## Data Plane
 
