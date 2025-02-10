@@ -2,7 +2,7 @@
 
 Meridio 2.x is an evolution of [Nordix/Meridio](https://github.com/nordix/meridio) built upon its foundation to offer a more modern and efficient approach. It enhances existing capabilities while introducing new features to better align with current technological trends and requirements.
 
-As of today (January 2025), this project is in the Proof of Concept (PoC) phase with ongoing development and testing to validate its viability and performance before moving into a broader implementation.
+As of today (February 2025), this project is in the Proof of Concept (PoC) phase with ongoing development and testing to validate its viability and performance before moving into a broader implementation.
 
 An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway-api-poc](https://github.com/LionelJouin/l-3-4-gateway-api-poc).
 
@@ -316,10 +316,12 @@ Below is a comparison of the endpoint registration in Nordix/Meridio and Meridio
 The Stateless-Load-Balancer-Router (SLLBR) is the workload (`Deployment`) instance(s) behind a `Gateway` object handling service-traffic. It is designed to provide high-performance packet forwarding without maintaining connection state, ensuring scalability and resilience.
 
 SLLBR is composed of two containers:
+
 * `Stateless-Load-Balancer`: Responsible for distributing incoming traffic across backend pods based on defined `L34Routes` and `Services` handle by the `Gateway`.
 * `Router`: Responsible for advertising VIPs handled by the `Gateway` to `GatewayRouters`.
 
 To function correctly, SLLBR requires specific system settings (SYSCTLs) to be configured within the pod's network namespace. These settings include:
+
 * `forwarding` set to `1` to enable IP forwarding.
 * `fib_multipath_hash_policy` set to `1` to allow multipath routing based on layer 4 hash.
 * `rp_filter` set to `2` to allow packets to have a source address which does not correspond to any routing destination address.
@@ -335,6 +337,7 @@ The container continuously watches relevant Kubernetes objects such as `Gateway`
 The readiness of the container is determined by two key factors: the successful execution of the NFQLB (nfqueue-loadbalancer) process and the ability to communicate with the Kubernetes API. This ensures that the load-balancer is fully operational and integrated within the cluster.
 
 To function properly, the container requires specific Linux capabilities and Kubernetes API access, including:
+
 * `NET_ADMIN` to configure network settings such as routing and firewall rules.
 * `IPC_LOCK` to allow NFQLB to use shared memory.
 * `IPC_OWNER` to allow NFQLB to use shared memory.
@@ -353,6 +356,7 @@ The controller-manager aggregating all VIPs handled by the `Gateway` into the `.
 The readiness of the container is determined by its ability to successfully run Bird2 and establish communication with the Kubernetes API.
 
 To function properly, the container requires specific Linux capabilities and Kubernetes API access, including:
+
 * `NET_ADMIN` to manage and modify routing tables.
 * `NET_BIND_SERVICE` to allow Bird2 to bind to privileged ports.
 * `NET_RAW` to Bird2 BIRD to use the SO_BINDTODEVICE socket option.
@@ -373,6 +377,7 @@ The [KEP 4770 (EndpointSlice Controller Flexibility)](https://github.com/kuberne
 The readiness of the container is determined by its ability to successfully establish communication with the Kubernetes API.
 
 To perform these operations, the Controller Manager requires access to a set of Kubernetes API resources:
+
 * `Pod`: `watch`, `list` and `get`.
 * `Deployment`: `create`, `delete`, `get`, `list`, `patch`, `update` and `watch`.
 * `Gateway`: `watch`, `list` and `get`.
@@ -469,6 +474,7 @@ Such solution which relies on adding and removing `NetworkAttachmentDefinition` 
 Adopting this approach also implies that other secondary network providers must support dynamic network attachment, which would require additional development effort for each supported solution.
 
 To perform these operations, a new controller requires access to a set of Kubernetes API resources:
+
 * `Pod`: `patch`, `update` , `watch`, `list` and `get`.
 
 This approach has been demonstrated in the proof-of-concept available here: [LionelJouin/l-3-4-gateway-api-poc](https://github.com/LionelJouin/l-3-4-gateway-api-poc).
@@ -482,11 +488,12 @@ The DaemonSet is deployed alongside Meridio 2.x so it can access the network nam
 Status information about the network configuration is captured and reported within pod annotations by the network daemon. This ensures that the previously applied configurations can be retrieved and referenced if the expected state needs to be updated, re-applied or removed. This approach also provides visibility into the system's configuration over time.
 
 To function properly, the container requires specific host directories mounted, Linux capabilities, CRI API and Kubernetes API access, including:
+
 * `/run/netns/` mounted to access the network namspace of the pods.
 * `/run/containerd/containerd.sock` mounted to access the CRI API.
 * `SYS_ADMIN` to access the network namspace of the pods.
 * `NET_ADMIN` to configure network settings such as routing and IP addresses.
-* `Kubernetes API`:`patch`, `update` , `watch`, `list` and `get` the `Pod` object.
+* `Kubernetes API`: `patch`, `update` , `watch`, `list` and `get` the `Pod` object.
 * `Kubernetes API`: `watch`, `list` and `get` the `Gateway`, `L34Route` and `Service` objects.
 
 During uninstallation, residual configurations could be left on the application pod. A job running on each node can be used to clean up any leftover network configurations, ensuring the system is fully cleaned after Meridio 2.x is removed.
@@ -523,10 +530,10 @@ Here is below a table compairing the different alternatives.
 
 | Option | Multus Dependent | Development Complexity | Ease of Use | Privileges | Troubleshooting | PoC | Footprint |
 | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| [1.1] Dynamic Network Attachment | Yes | Complex | Easy | Minimal | Complex | Yes | Moderate |
-| [1.2] Network Daemon | No | Easy / Moderate | Easy | Important | Easy / Moderate | Yes | Moderate |
-| [3] Sidecar | No | Easy / Moderate | Moderate | Moderate | Moderate | Yes | Moderate / High |
-| [4] Static Configuration | No | Complex | Complex | Minimal | Complex | No | Minimal |
+| [1.1] [Dynamic Network Attachment](#11-dynamic-network-attachment) | Yes | Complex | Easy | Minimal | Complex | Yes | Moderate |
+| [1.2] [Network Daemon](#12-network-daemon) | No | Easy / Moderate | Easy | Important | Easy / Moderate | Yes | Moderate |
+| [3] [Sidecar](#3-sidecar) | No | Easy / Moderate | Moderate | Moderate | Moderate | Yes | Moderate / High |
+| [4] [Static Configuration](#4-static-configuration) | No | Complex | Complex | Minimal | Complex | No | Minimal |
 
 * **Multus Dependent**: Does the option depend on Multus?
 * **Development Complexity**: How complex is the option to implement / develop?
@@ -553,6 +560,7 @@ Below is a comparison of the configuration management in Nordix/Meridio and Meri
 #### Footprint
 
 Resource consumption for pods running on Nordix/Meridio and Meridio 2.x has been measured under idle conditions (no traffic). To ensure a fair comparison, the configuration and environment were replicated as closely as possible across both setups:
+
 * Cluster Setup: 3 nodes (1 control plane, 2 worker nodes), 1 external DC-Gateway
 * Workload: 4 application pods, 2 load-balancer instances
 
@@ -821,7 +829,7 @@ In Nordix/Meridio, a keep-alive mechanism is employed to maintain the registrati
 
 As users are now in Meridio 2.x responsible to configure networks and attach the application pods and the `Gateways` to these networks. Dynamically adding network interfaces to application pods is then supported out-of-the box. By leveraging Multus-Thick and [Multus-Dynamic-Networks-Controller](https://github.com/k8snetworkplumbingwg/multus-dynamic-networks-controller), users can modify the annotations of a running pod and add/remove (update is not supported) network attachment(s). Multus will take care of calling the corresponding CNI(s) so the interface(s) are added/removed while the pod is running (no need for the pod to be deleted/stopped).
 
-It is important to note that the support for attachment/update of resources on running pods will unlikely be supported by DRA soon. To support it, underlying APIs such as CRI, CNI and more might require adaptations. As a comparable and related feature, the [KEP-1287 (In-Place Update of Pod Resources)](https://github.com/kubernetes/enhancements/issues/1287) which has been opened in 2019, is still in alpha phase and is still disabled by default in Kubernetes v1.32 (the feature-gate is `InPlacePodVerticalScaling`). KEP-1287 allows pod resource requests & limits (CPU and memory) to be updated in-place, without a need to restart the Pod or its Containers.
+It is important to note that the support for attachment/update of resources on running pods will unlikely be supported by DRA soon. To support it, underlying APIs such as CRI, CNI and more might require adaptations. As a comparable and related feature, the [KEP-1287 (In-Place Update of Pod Resources)](https://github.com/kubernetes/enhancements/issues/1287) which has been opened in 2019, is still in alpha phase and is still disabled by default in Kubernetes v1.32 (the feature-gate is `InPlacePodVerticalScaling`). KEP-1287 allows pod resource requests & limits (CPU and memory) to be updated in-place, without a need to restart the Pod or its Containers. Some work on the underlying API has also started, for example, NRI proposes to add the `UpdatePodSandbox` function (proposed in KEP-1287 to be added in the CRI API) to its API.
 
 To provide automatic configuration of networks and automatic attachment of the applications and to the `Gateways`, an independent controller could eventually be responsible for it. This implies that this independent controller understands the underlying infrastructure (Kubernetes versions, networks already in use, Multus, CNIs...) as the networks might be configured in a different way. 
 

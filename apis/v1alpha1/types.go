@@ -183,6 +183,7 @@ type GatewayRouterList struct {
 
 // Network represents a single network, its way to attach it, and the way it should be mounted to
 // the endpoints and proxy pods.
+// +k8s:deepcopy-gen=false
 type Network struct {
 	// Name of the network.
 	Name string `json:"name,omitempty"`
@@ -195,6 +196,7 @@ type Network struct {
 }
 
 // NetworkAttachementAnnotation represents a network attached via an annotation.
+// +k8s:deepcopy-gen=false
 type NetworkAttachementAnnotation struct {
 	// Key of the network attachement (e.g.: k8s.v1.cni.cncf.io/networks).
 	Key string `json:"key,omitempty"`
