@@ -43,6 +43,12 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
    * [Meridio Gateway to Endpoint (Application pod)](#meridio-gateway-to-endpoint-application-pod)
    * [Endpoint (Application pod)](#endpoint-application-pod)
    * [Dataplane Nordix/Meridio Differences](#dataplane-nordixmeridio-differences)
+   * [Network Topology](#network-topology)
+      + [Topology 1: Legacy](#topology-1-legacy)
+      + [Topology 2: Reuse and Shared Internal Network](#topology-2-reuse-and-shared-internal-network)
+      + [Topology 3: Reuse Frontend Network](#topology-3-reuse-frontend-network)
+      + [Topology 4: Shared Frontend Network](#topology-4-shared-frontend-network)
+      + [Internal/External Network Configuration](#internalexternal-network-configuration)
 - [Extra Features](#extra-features)
    * [Gateway Configuration](#gateway-configuration)
    * [Resource Template](#resource-template)
@@ -664,6 +670,65 @@ Below is a comparison of the dataplane overview in Nordix/Meridio and Meridio 2.
 | Nordix/Merdio | Meridio 2.x |
 | ------- | ------- |
 | ![Overview](resources/diagrams-dataplane-v1.png) | ![Overview](resources/diagrams-dataplane-v2.png) |
+
+### Network Topology
+
+The following sections outline various network topologies that are supported out-of-the-box in Meridio 2.x. Users have the flexibility to configure Meridio 2.x according to their specific needs and requirements. The configurations provided below serve as examples, and users are free to choose any technology (such as MACVLAN, VLAN, VxLAN, Linux Kernel, OVS, VPP...) for both the external/frontend network and the internal network.
+
+These topologies offer different approaches to managing network traffic and can be tailored to meet the unique demands of various environments and ensure the compatibility with existing infrastructure. Whether focusing on isolation, resource efficiency, or simplified management, Meridio 2.x provides the tools and flexibility needed to implement the optimal network configuration for diverse use cases.
+
+#### Topology 1: Legacy
+
+This topology represents the basic scenario supported in Nordix/Meridio. In this setup, there is full end to end separation from each external (frontend) network to each application pod. For each external network, a dedicated `Gateway` is created to handle incoming traffic. This `Gateway` is responsible for load-balancing the traffic over a new, dedicated internal network that is connected to the application pods.
+
+In this configuration, the subnets between different internal networks must be distinct if an application is connected to both internal networks. However, if an application is connected to one internal network and another application is connected to a different internal network, both internal networks can use the same subnet.
+
+Below is an illustration of this topology:
+
+![Overview](resources/diagrams.deployment-Setup-1.png)
+
+#### Topology 2: Reuse and Shared Internal Network
+
+In this scenario, similar to the previous one, a dedicated `Gateway` is created to handle the incoming traffic for each external network. However, unlike the legacy topology, the internal network is now shared and reused for the two separate paths.
+
+This configuration allows a more efficient use of network resources by sharing the internal network infrastructure between different external networks. By reusing the internal network, the system can reduce the complexity and overhead associated with managing multiple separate internal networks.
+
+Below is an illustration of this topology:
+
+![Overview](resources/diagrams.deployment-Setup-2.png)
+
+#### Topology 3: Reuse Frontend Network
+
+In this scenario, the external network, which is usually only connected to the `Gateway`, is now also connected to the application pods. This configuration allows the external (frontend) network to be reused for the traffic between the Gateway and the application pods. While this setup could theoretically support direct server return (DSR), the actual behavior remains similar to the other network topologies. Instead of using the external gateway IP as the next hop for outgoing traffic in the application pods, the traffic flow goes through the `Gateway`.
+
+Below is an illustration of this topology:
+
+![Overview](resources/diagrams.deployment-Setup-3.png)
+
+#### Topology 4: Shared Frontend Network
+
+This topology focuses on external (frontend) connectivity and represents a scenario that was supported in Nordix/Meridio. In this configuration, multiple `Gateway` instances are connected to the same external (frontend) gateway and each `Gateway` advertises different Virtual IP (VIP) addresses.
+
+Below is an illustration of this topology:
+
+![Overview](resources/diagrams.deployment-Setup-4.png)
+
+#### Internal/External Network Configuration
+
+Users have several options to configure internal and external networks for their applications. The choice depends on the existing infrastructure and specific requirements.
+
+One approach is to leverage existing infrastructure by integrating pods with physical or host networks using basic networking capabilities. This can be achieved through [official CNI plugins](https://www.cni.dev/plugins/current/) such as MACVLAN or VLAN, or other CNI solutions like [OVS-CNI](https://github.com/k8snetworkplumbingwg/ovs-cni).
+
+In scenarios where the existing infrastructure does not provide a suitable network and users must create completely new networks such as overlay networks. Several solutions are available for this purpose:
+
+* [OVN-Kubernetes](https://ovn-kubernetes.io/api-reference/userdefinednetwork-api-spec/) via its `UserDefinedNetwork` resource.
+* [Calico](https://github.com/projectcalico/vpp-dataplane/blob/v3.29.0/docs/multinet.md) via its Calico `Network` resource when using the VPP dataplane.
+* [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/docs/how-to/setup-multinetwork-support-for-pods#configure-netdevice-network) via its `Network` resource.
+* [Cilium Enterprise](https://isovalent.com/blog/post/isovalent-enterprise-for-cilium-1-14-multi-network/) via its `IsovalentPodNetwork` resource.
+
+Looking ahead, the Kubernetes community is exploring the `PodNetwork` feature, which aims to provide a standardized API for managing pod-level networking. This upcoming feature could streamline network configuration across different environments, offering a more consistent and integrated approach to network management in Kubernetes.
+
+By selecting the appropriate network configuration method, users can ensure that their applications are well-integrated with the underlying infrastructure, optimizing performance and reliability.
 
 ## Extra Features
 
