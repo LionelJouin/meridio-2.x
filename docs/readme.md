@@ -10,75 +10,86 @@ An older implementation of this PoC is existing here: [LionelJouin/l-3-4-gateway
 
 <!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
 
-- [Summary](#summary)
-- [Motivation](#motivation)
-   * [Why Meridio](#why-meridio)
-- [API](#api)
-   * [Gateway API and Kubernetes API](#gateway-api-and-kubernetes-api)
-      + [Gateway](#gateway)
-         - [GatewayClass](#gatewayclass)
-      + [L34Route](#l34route)
-      + [Service](#service)
-   * [GatewayRouter](#gatewayrouter)
-   * [API Nordix/Meridio Differences](#api-nordixmeridio-differences)
-      + [Network Configuration and Endpoint Registration](#network-configuration-and-endpoint-registration)
-- [Components](#components)
-   * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr)
-      + [Stateless-Load-Balancer (SLLB)](#stateless-load-balancer-sllb)
-      + [Router](#router)
-   * [Controller-Manager](#controller-manager)
-   * [Alternatives for Application Network Configuration Injection](#alternatives-for-application-network-configuration-injection)
-      + [[1] Annotation Injection](#1-annotation-injection)
-         - [[1.1] Dynamic Network Attachment](#11-dynamic-network-attachment)
-         - [[1.2] Network Daemon](#12-network-daemon)
-      + [[3] Sidecar](#3-sidecar)
-      + [[4] Static Configuration](#4-static-configuration)
-      + [Comparaison of the Alternatives for Application Network Configuration Injection](#comparaison-of-the-alternatives-for-application-network-configuration-injection)
-   * [Components Nordix/Meridio Differences](#components-nordixmeridio-differences)
-      + [Footprint](#footprint)
-      + [Privileges](#privileges)
-- [Data Plane](#data-plane)
-   * [DC Gateway to Meridio Gateway](#dc-gateway-to-meridio-gateway)
-   * [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr-1)
-   * [Meridio Gateway to Endpoint (Application pod)](#meridio-gateway-to-endpoint-application-pod)
-   * [Endpoint (Application pod)](#endpoint-application-pod)
-   * [Dataplane Nordix/Meridio Differences](#dataplane-nordixmeridio-differences)
-   * [Network Topology](#network-topology)
-      + [Topology 1: Legacy](#topology-1-legacy)
-      + [Topology 2: Reuse and Shared Internal Network](#topology-2-reuse-and-shared-internal-network)
-      + [Topology 3: Reuse Frontend Network](#topology-3-reuse-frontend-network)
-      + [Topology 4: Shared Frontend Network](#topology-4-shared-frontend-network)
-      + [Internal/External Network Configuration](#internalexternal-network-configuration)
-- [Extra Features](#extra-features)
-   * [Gateway Configuration](#gateway-configuration)
-   * [Resource Template](#resource-template)
-   * [Port Address Translation (PAT)](#port-address-translation-pat)
-- [Implementation Details](#implementation-details)
-   * [Service Endpoint Identifier](#service-endpoint-identifier)
-- [Prerequisites](#prerequisites)
-   * [Prerequisites Nordix/Meridio Differences](#prerequisites-nordixmeridio-differences)
-- [Multi-Tenancy](#multi-tenancy)
-- [Upgrade and Migration](#upgrade-and-migration)
-   * [Data Plane](#data-plane-1)
-   * [Meridio 2.x](#meridio-2x)
-   * [From Nordix/Meridio](#from-nordixmeridio)
-- [Project Structure and Implementation](#project-structure-and-implementation)
-   * [Projects](#projects)
-   * [Framework amd Design Pattern](#framework-amd-design-pattern)
-- [Evolution](#evolution)
-   * [Dynamic Resource Allocation](#dynamic-resource-allocation)
-   * [Non-Ready Pod Detection](#non-ready-pod-detection)
-   * [Dynamic Network Interface Injection and Network Configuration Responsibility](#dynamic-network-interface-injection-and-network-configuration-responsibility)
-   * [Service Type](#service-type)
-   * [Service Chaining](#service-chaining)
-   * [Service as BackendRefs](#service-as-backendrefs)
-- [Alternatives](#alternatives)
-   * [LoxiLB](#loxilb)
-   * [OVN-Kubernetes](#ovn-kubernetes)
-   * [F5](#f5)
-   * [Google](#google)
-   * [Cilium](#cilium)
-- [References](#references)
+* [Summary](#summary)
+* [Motivation](#motivation)
+    + [Why Meridio](#why-meridio)
+* [API](#api)
+    + [Gateway API and Kubernetes API](#gateway-api-and-kubernetes-api)
+        - [Gateway](#gateway)
+        * [GatewayClass](#gatewayclass)
+        - [L34Route](#l34route)
+        - [Service](#service)
+    + [GatewayRouter](#gatewayrouter)
+    + [API Nordix/Meridio Differences](#api-nordixmeridio-differences)
+        - [Network Configuration and Endpoint Registration](#network-configuration-and-endpoint-registration)
+* [Components](#components)
+    + [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr)
+        - [Stateless-Load-Balancer (SLLB)](#stateless-load-balancer-sllb)
+        - [Router](#router)
+    + [Controller-Manager](#controller-manager)
+    + [Alternatives for Application Network Configuration Injection](#alternatives-for-application-network-configuration-injection)
+        - [[1] Annotation Injection](#1-annotation-injection)
+        * [[1.1] Dynamic Network Attachment](#11-dynamic-network-attachment)
+        * [[1.2] Network Daemon](#12-network-daemon)
+        - [[3] Sidecar](#3-sidecar)
+        - [[4] Static Configuration](#4-static-configuration)
+        - [Comparaison of the Alternatives for Application Network Configuration Injection](#comparaison-of-the-alternatives-for-application-network-configuration-injection)
+    + [Components Nordix/Meridio Differences](#components-nordixmeridio-differences)
+        - [Footprint](#footprint)
+        - [Privileges](#privileges)
+* [Data Plane](#data-plane)
+    + [DC Gateway to Meridio Gateway](#dc-gateway-to-meridio-gateway)
+    + [Stateless-Load-Balancer-Router (SLLBR)](#stateless-load-balancer-router-sllbr-1)
+    + [Meridio Gateway to Endpoint (Application pod)](#meridio-gateway-to-endpoint-application-pod)
+    + [Endpoint (Application pod)](#endpoint-application-pod)
+    + [Dataplane Nordix/Meridio Differences](#dataplane-nordixmeridio-differences)
+    + [Network Topology](#network-topology)
+        - [Topology 1: Legacy](#topology-1-legacy)
+        - [Topology 2: Reuse and Shared Internal Network](#topology-2-reuse-and-shared-internal-network)
+        - [Topology 3: Reuse Frontend Network](#topology-3-reuse-frontend-network)
+        - [Topology 4: Shared Frontend Network](#topology-4-shared-frontend-network)
+        - [Internal/External Network Configuration](#internalexternal-network-configuration)
+* [Extra Features](#extra-features)
+    + [Gateway Configuration](#gateway-configuration)
+    + [Resource Template](#resource-template)
+    + [Port Address Translation (PAT)](#port-address-translation-pat)
+* [Implementation Details](#implementation-details)
+    + [Service Endpoint Identifier](#service-endpoint-identifier)
+* [Prerequisites](#prerequisites)
+    + [Prerequisites Nordix/Meridio Differences](#prerequisites-nordixmeridio-differences)
+* [Multi-Tenancy](#multi-tenancy)
+* [Upgrade and Migration](#upgrade-and-migration)
+    + [Data Plane](#data-plane-1)
+    + [Meridio 2.x](#meridio-2x-1)
+    + [From Nordix/Meridio](#from-nordixmeridio)
+* [Testing](#testing)
+    + [Feature](#feature)
+    + [Lifecyle](#lifecyle)
+    + [Resiliency](#resiliency)
+    + [Performance, Edge Case and Scalability](#performance-edge-case-and-scalability)
+    + [Long Duration](#long-duration)
+    + [Security](#security)
+    + [Compatibility](#compatibility)
+    + [Integration](#integration)
+* [Project Structure and Implementation](#project-structure-and-implementation)
+    + [Projects](#projects)
+    + [Framework amd Design Pattern](#framework-amd-design-pattern)
+* [Evolution](#evolution)
+    + [Dynamic Resource Allocation](#dynamic-resource-allocation)
+    + [Non-Ready Pod Detection](#non-ready-pod-detection)
+    + [Dynamic Network Interface Injection and Network Configuration Responsibility](#dynamic-network-interface-injection-and-network-configuration-responsibility)
+    + [Service Type](#service-type)
+    + [Service Chaining](#service-chaining)
+    + [Service as BackendRefs](#service-as-backendrefs)
+* [Alternatives](#alternatives)
+    + [LoxiLB](#loxilb)
+    + [OVN-Kubernetes](#ovn-kubernetes)
+    + [F5](#f5)
+    + [Google](#google)
+    + [Cilium](#cilium)
+* [References](#references)
+
+<!-- TOC end -->
 
 ## Summary
 
@@ -847,6 +858,245 @@ Meridio 2.x is not backward compatible with Nordix/Meridio, meaning an upgrade w
 While both versions can be deployed alongside each other within the same environment, there are no guarantees that source-based routing or any other networking configuration within the application pods will not encounter conflicts.
 
 ![Overview](resources/diagrams-Migration.png)
+
+## Testing
+
+### Feature
+
+The Feature tests section outlines a series of tests designed to validate the core functionalities of the Meridio 2.x system. These tests ensure that the system can effectively handle various types of network traffic, scale components dynamically, and manage application endpoints efficiently.
+
+* Load-Balancing
+   * **Description**: It should be possible to load-balance traffic among applications.
+   * **Prerequisites**: Gateway/GatewayRouter/L34Route/Service and several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* TCP Traffic
+   * **Description**: It should be possible to handle TCP traffic.
+   * **Prerequisites**: Gateway/GatewayRouter/Service, a L34Route for TCP traffic and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* UDP Traffic
+   * **Description**: It should be possible to handle UDP traffic.
+   * **Prerequisites**: Gateway/GatewayRouter/Service, a L34Route for UDP traffic and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* SCTP Traffic
+   * **Description**: It should be possible to handle SCTP traffic.
+   * **Prerequisites**: Gateway/GatewayRouter/Service, a L34Route for SCTP traffic and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* ICMP Traffic
+   * **Description**: It should be possible to handle ICMP traffic.
+   * **Prerequisites**: Gateway/GatewayRouter/Service, a L34Route for ICMP traffic and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* IPv4 Traffic
+   * **Description**: It should be possible to handle IPv4 traffic.
+   * **Prerequisites**: Gateway/GatewayRouter/Service, a L34Route for IPv4 traffic and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* IPv6 Traffic
+   * **Description**: It should be possible to handle IPv6 traffic.
+   * **Prerequisites**: Gateway/GatewayRouter/Service, a L34Route for IPv6 traffic and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+* SLLBR Scaling Up
+   * **Description**: It should be possible to scale up SLLBRs with no traffic disturbance.
+   * **Prerequisites**: GatewayRouter/L34Route/Service, a Gateway with several replicas and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+      2. Scale up SLLBRs.
+      3. Stop traffic.
+* SLLBR Scaling Down
+   * **Description**: It should be possible to scale down SLLBRs with no traffic disturbance.
+   * **Prerequisites**: GatewayRouter/L34Route/Service, a Gateway with several replicas and one or several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+      2. Scale down SLLBRs.
+      3. Stop traffic.
+* Application (Endpoint) Scaling Up
+   * **Description**: It should be possible to scale up application pods (Endpoints).
+   * **Prerequisites**: Gateway/GatewayRouter/L34Route/Service and several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+      2. Scale up application pods (endpoints).
+      3. Stop traffic.
+* Application (Endpoint) Scaling Down
+   * **Description**: It should be possible to scale down application pods (Endpoints).
+   * **Prerequisites**: Gateway/GatewayRouter/L34Route/Service and several application pods (endpoints).
+   * **Steps**:
+      1. Send traffic.
+      2. Scale down application pods (endpoints).
+      3. Stop traffic.
+* Application (Endpoint) Non-Ready
+   * **Description**: The traffic will be load-balanced to only ready application pods (endpoints).
+   * **Prerequisites**: Gateway/GatewayRouter/L34Route/Service and several application pods (endpoints) with at least 1 non ready application pod (endpoint).
+   * **Steps**:
+      1. Send traffic.
+* Multi-Path
+   * **Description**: It should be possible to handle traffic on multiple paths.
+   * **Prerequisites**: Several Gateways/GatewayRouters/Services/L34Routes and one or several application pods (endpoints) for each path.
+   * **Steps**:
+      1. Send traffic on each path.
+
+### Lifecyle
+
+The Lifecycle tests focus on evaluating the various stages of the Meridio 2.x system's deployment and management lifecycle. These tests are designed to ensure that the system can be installed, upgraded, downgraded, and uninstalled smoothly, and that it can operate reliably in multi-tenancy environments.
+
+* Installation - Uninstallation
+   * **Description**: It should be possible to install/uninstall Meridio 2.x.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Install Meridio 2.x.
+      2. Deploy Gateway/GatewayRouter/L34Route/Service and several application pods (endpoints).
+      3. Send Traffic.
+      4. Uninstall Meridio 2.x.
+* Upgrade
+   * **Description**: It should be possible to upgrade Meridio 2.x.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send Traffic.
+      2. Upgrade Meridio 2.x.
+      3. Stop Traffic.
+* Downgrade
+   * **Description**: It should be possible to upgrade Meridio 2.x.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send Traffic.
+      2. Downgrade Meridio 2.x.
+      3. Stop Traffic.
+*  Rollback
+   * **Description**: It should be possible to downgrade Meridio 2.x.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send Traffic.
+      2. Rollback Meridio 2.x.
+      3. Stop Traffic.
+* Multi-Tenancy
+   * **Description**: It should be possible to deploy Meridio 2.x multiple times in the same cluster.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Deploy Meridio 2.x several times with the exact same configuration except the namespace, GatewayRouter(s) and endpoints.
+      2. Send traffic on each instance at the same time.
+
+### Resiliency
+
+The Resiliency tests focus on evaluating the robustness and reliability of the Meridio 2.x system under various stress conditions and failure scenarios. These tests are designed to ensure that the system can maintain its functionality and recover gracefully from disruptions within a reasonable amount of time, such as node failures, process crashes, and network issues. Specialized tools, such as Litmus or Chaos Mesh, are employed to simulate these conditions and measure the system's response and recovery times.
+
+* Kubernetes worker node restart
+   * **Description**: It should be possible to restart a Kubernetes Node.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send Traffic.
+      2. Restart Node.
+      3. Stop Traffic.
+* Kubernetes worker node taint
+   * **Description**: It should be possible to taint a Kubernetes Node.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send Traffic.
+      2. Taint Node.
+      3. Stop Traffic.
+* Kubernetes worker node drain
+   * **Description**: It should be possible to drain a Kubernetes Node.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send Traffic.
+      2. Drain Node.
+      3. Stop Traffic.
+* Controller-Manager Deletion
+   * **Description**: It should be possible to delete the controller-manager pod.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Delete a SLLBR pod.
+      3. Wait for the SLLBR pod to be created.
+      4. Stop traffic.
+* Controller-Manager process failure
+   * **Description**: It should be possible to ungracefully kill the controller-manager main process.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Kill a controller-manager process via ungraceful kill.
+      3. Wait for the controller-manager process to have restarted.
+      4. Stop traffic.
+* SLLBR Deletion
+   * **Description**: It should be possible to delete the SLLBR pod.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Delete a SLLBR pod.
+      3. Wait for the SLLBR pod to be created.
+      4. Stop traffic.
+* SLLBR SLLB process failure
+   * **Description**: It should be possible to ungracefully kill the SLLB main process in the SLLBR container in a SLLBR pod.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Kill a SLLBR SLLB process via ungraceful kill.
+      3. Wait for the SLLBR SLLB process to have restarted.
+      4. Stop traffic.
+* SLLBR SLLB NFQLB process failure
+   * **Description**: It should be possible to ungracefully kill the NFQLB process in the SLLBR container in a SLLBR pod.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Kill the SLLBR SLLB NFQLB process via ungraceful kill.
+      3. Wait for the SLLBR SLLB NFQLB process to have restarted.
+      4. Stop traffic.
+* SLLBR Router process failure
+   * **Description**: It should be possible to ungracefully kill the router main process in the Router container in a SLLBR pod.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Kill the SLLBR Router process via ungraceful kill.
+      3. Wait for the SLLBR Router process to have restarted.
+      4. Stop traffic.
+* SLLBR Router Bird2 process failure
+   * **Description**: It should be possible to ungracefully kill the Bird2 process in the Router container in a SLLBR pod.
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Send traffic.
+      2. Kill the SLLBR Router Bird2 process via ungraceful kill.
+      3. Wait for the SLLBR Router Bird2 process to have restarted.
+      4. Stop traffic.
+* BGP + BFD
+   * **Description**: It should be possible to detect quickly a SLLBR-GatewayRouter link is down.
+   * **Prerequisites**: N/A
+   * **Steps**:
+
+### Performance, Edge Case and Scalability
+
+The Performance, Edge Case and Scalability tests are designed to assess the Meridio 2.x system's ability to handle maximum operational limits and maintain performance under various edge conditions. These tests ensure that the system can scale effectively and manage high loads without compromising functionality or stability. 
+
+* All Maximum Limits
+   * **Description**: It should be possible to deploy all everything at the maximum limit defined.
+   * **Prerequisites**: N/A
+   * **Steps**: 
+      1. Deploy the maximum limit of Gateways.
+      2. Deploy the maximum limit of GatewayRouters for each Gateway.
+      3. Deploy the maximum limit of Services for each Gateway.
+      4. Deploy the maximum limit of L34Routes (including the limit of attributes (DestinationCIDRs, DestionationPorts...)) for each Gateway.
+      5. Deploy the maximum limit of application pods (Endpoints) for each Service.
+      6. Test high-load traffic for each L34Routes.
+
+### Long Duration
+
+The Long Duration test is designed to rigorously assess the stability, reliability, and endurance of the Meridio 2.x system over an extended period. This test aims to simulate a production-like environment by continuously running the system with the same deployment configuration. By doing so, it ensures that the system can handle prolonged operational demands without any degradation in performance or functionality. Throughout this extended testing phase, a comprehensive suite of tests, including stress tests, feature tests, lifecycle tests, and resiliency tests, will be constantly executed. This approach helps in closely monitoring the system's performance, identifying any potential issues, and ensuring that it remains robust and reliable over time.
+
+### Security
+
+The Security tests are dedicated to evaluating the security posture of the Meridio 2.x system. These tests are designed to ensure that the system adheres to security best practices and is resilient against potential vulnerabilities. Specialized tools, such as Kube-Bench, Kubescape, Kube-linter, Kube-score, Popeye or Polaris, will be used to assess and validate the security measures in place. 
+
+* Runtime Profiling
+   * **Description**: It should analyze and validate the security posture of Meridio 2.x. 
+   * **Prerequisites**: N/A
+   * **Steps**:
+      1. Run scanning tools.
+
+### Compatibility
+
+The Compatibility tests aim to verify that the Meridio 2.x system operates effectively across different environments and configurations. These tests ensure that the system is versatile and can integrate seamlessly with various Kubernetes versions and distributions. It is essential that the full test scope is run in different environments to confirm the system's adaptability and reliability across diverse setups. 
 
 ## Project Structure and Implementation
 
